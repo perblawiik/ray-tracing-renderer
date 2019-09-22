@@ -6,7 +6,7 @@
 #include <chrono>
 
 #include "Bitmap.h"
-#include "TriangleData.h"
+#include "TriangleObject.h"
 #include "Camera.h"
 #include "Sphere.h"
 
@@ -16,18 +16,18 @@ int main()
 {
 	const int width = 800;
 	const int height = 800;
-	const vec3 camera_position(1.0, 0.0, 0.0);
-	const vec3 light_position(5.0, 0.0, 4.0);
+	const vec3 camera_position(12.0, 0.0, 0.0);
+	const vec3 light_position(0.0, 0.0, 4.0);
 
-	TriangleData triangle_objects;
+	TriangleObject walls;
 	{
-		const double triangleData[] = {
+		const double triangle_data[] = {
 			//Color           Normal		   Vertex 1            Vertex 2           Vertex 3
 			//-- FLOOR --//
-			1.0, 1.0, 1.0,    0.0, 0.0, 1.0,   -3.0, 0.0, -2.0,    10.0, 6.0, -2.0,   0.0, 6.0, -2.0,
-			1.0, 1.0, 1.0,    0.0, 0.0, 1.0,   -3.0, 0.0, -2.0,    13.0, 0.0, -2.0,   10.0, 6.0, -2.0,
-			1.0, 1.0, 1.0,    0.0, 0.0, 1.0,   13.0, 0.0, -2.0,    -3.0, 0.0, -2.0,   0.0, -6.0, -2.0,
-			1.0, 1.0, 1.0,    0.0, 0.0, 1.0,   13.0, 0.0, -2.0,    0.0, -6.0, -2.0,   10.0, -6.0, -2.0,
+			1.0, 1.0, 1.0,    0.0, 0.0, 1.0,   -3.0, 0.0, -5.0,    13.0, 0.0, -5.0,   10.0, 6.0, -5.0,
+			1.0, 1.0, 1.0,    0.0, 0.0, 1.0,   -3.0, 0.0, -5.0,    10.0, 6.0, -5.0,   0.0, 6.0, -5.0,
+			1.0, 1.0, 1.0,    0.0, 0.0, 1.0,   13.0, 0.0, -5.0,    -3.0, 0.0, -5.0,   0.0, -6.0, -5.0,
+			1.0, 1.0, 1.0,    0.0, 0.0, 1.0,   13.0, 0.0, -5.0,    0.0, -6.0, -5.0,   10.0, -6.0, -5.0,
 			//-- CEILING --//
 			1.0, 1.0, 1.0,    0.0, 0.0, -1.0,   -3.0, 0.0, 5.0,    0.0, 6.0, 5.0,     10.0, 6.0, 5.0,
 			1.0, 1.0, 1.0,    0.0, 0.0, -1.0,   -3.0, 0.0, 5.0,    10.0, 6.0, 5.0,    13.0, 0.0, 5.0,
@@ -39,26 +39,34 @@ int main()
 			//-- RIGHT WALL --//
 			0.0, 1.0, 1.0,    0.0, -1.0, 0.0,   0.0, 6.0, -5.0,     0.0, 6.0, 5.0,     10.0, 6.0, 5.0,
 			0.0, 1.0, 1.0,    0.0, -1.0, 0.0,   0.0, 6.0, -5.0,     10.0, 6.0, 5.0,    10.0, 6.0, -5.0,
-			//-- FRONT LEFT WALL --//
+			//-- BACK RIGHT WALL --//
 			0.0, 1.0, 0.5,   -0.894427, 0.447214, 0.0,  10.0, -6.0, -5.0,   10.0, -6.0, 5.0,   13.0, 0.0, 5.0,
 			0.0, 1.0, 0.5,   -0.894427, 0.447214, 0.0,  10.0, -6.0, -5.0,   13.0, 0.0, -5.0,   13.0, 0.0, 5.0,
-			//-- FRONT RIGHT WALL --//
+			//-- BACK LEFT WALL --//
 			1.0, 1.0, 0.0,   -0.894427, -0.447214, 0.0,  10.0, 6.0, -5.0,   10.0, 6.0, 5.0,    13.0, 0.0, 5.0,
 			1.0, 1.0, 0.0,   -0.894427, -0.447214, 0.0,  13.0, 0.0, 5.0,    13.0, 0.0, -5.0,   10.0, 6.0, -5.0,
-			//-- BACK LEFT WALL --//
+			//-- FRONT LEFT WALL --//
 			0.0, 0.0, 1.0,   0.894427, 0.447214, 0.0,   -3.0, 0.0, -5.0,   0.0, -6.0, 5.0,   -3.0, 0.0, 5.0,
 			0.0, 0.0, 1.0,   0.894427, 0.447214, 0.0,   -3.0, 0.0, -5.0,   0.0, -6.0, -5.0,   0.0, -6.0, 5.0,
-			//-- BACK RIGHT WALL --//
+			//-- FRONT RIGHT WALL --//
 			1.0, 0.0, 1.0,   0.894427, -0.447214, 0.0,   -3.0, 0.0, -5.0,   0.0, 6.0, 5.0,   0.0, 6.0, -5.0,
 			1.0, 0.0, 1.0,   0.894427, -0.447214, 0.0,   -3.0, 0.0, -5.0,   -3.0, 0.0, 5.0,   0.0, 6.0, 5.0
 		};
-		triangle_objects.loadData(triangleData, 20);
+		walls.loadData(triangle_data, 20);
+	}
+
+	TriangleObject tetrahedron;
+	{
+		vec3 color = vec3(1.0, 1.0, 1.0);
+		vec3 position = vec3(0.0, -4.0, -5.0);
+		double scale = 4.0;
+		tetrahedron.createTetrahedron(color, position, scale);
 	}
 	
-	Sphere sphere(vec3(1.0, 1.0, 1.0), vec3(5.0, 0.0, -1.0), 1.0);
+	Sphere sphere(vec3(1.0, 1.0, 1.0), vec3(3.0, 1.0, -2.5), 2.0);
 
 	Camera camera(width, height, camera_position);
-	camera.loadSceneObjects(&triangle_objects, &sphere);
+	camera.loadSceneObjects(&walls, &sphere, &tetrahedron);
 	camera.setLightPosition(light_position);
 
 	auto time_start = std::chrono::high_resolution_clock::now();

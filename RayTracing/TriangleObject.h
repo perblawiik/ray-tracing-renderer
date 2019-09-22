@@ -7,13 +7,14 @@
 
 #include "Triangle.h"
 
-class TriangleData
+class TriangleObject
 {
 public:
 	std::vector<Triangle> triangles;
 
 	// Constructor
-	TriangleData();
-	TriangleData(const double data[], const size_t num_triangles);
+	TriangleObject();
+	TriangleObject(const double data[], const size_t num_triangles);
 	void loadData(const double data[], const size_t num_triangles);
+	void createTetrahedron(const glm::vec3& color, const glm::vec3& position, const double& scale);
 };

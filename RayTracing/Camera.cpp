@@ -1,15 +1,17 @@
 #include "Camera.h"
 
 Camera::Camera(const size_t width, const size_t height, const vec3& eye)
-	: _eye_point(eye), _camera_film(width, height, vec3(_eye_point.x + 1.0, 0.0, 0.0)), 
-	_triangle_objects(nullptr), _sphere(nullptr), _light_position(vec3(4.0, 0.0, 4.0)), 
-	_distribution(std::uniform_real_distribution<double>(0.0, 1.0))
-{ }
-
-void Camera::loadSceneObjects(TriangleData* objects, Sphere* sphere)
+	: _eye_point(eye), _camera_film(width, height, vec3(_eye_point.x - 1.0, 0.0, 0.0)),
+	_diffuse_walls(nullptr), _specular_tetrahedron(nullptr), _specular_sphere(nullptr),
+	_light_position(vec3(4.0, 0.0, 4.0)), _distribution(std::uniform_real_distribution<double>(0.0, 1.0))
 {
-	_triangle_objects = objects;
-	_sphere = sphere;
+}
+
+void Camera::loadSceneObjects(TriangleObject* walls, Sphere* sphere, TriangleObject* tetrahedron)
+{
+	_diffuse_walls = walls;
+	_specular_sphere = sphere;
+	_specular_tetrahedron = tetrahedron;
 }
 
 void Camera::setLightPosition(const vec3& position)
@@ -28,7 +30,7 @@ void Camera::render()
 			Ray ray(_eye_point, normalize(pixel - _eye_point));
 
 			// Number of ray reflections to trace
-			const int max_reflections = 2;
+			const int max_reflections = 3;
 
 			// Compute the incoming radiance
 			dvec3 final_color = tracePath(ray, max_reflections);
@@ -113,7 +115,7 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 			createLocalCoordinateSystem(closest_point.normal, local_x_axis, local_z_axis);
 
 			// Perform a Monte Carlo integration for indirect lighting with N samples
-			size_t N = 128;
+			size_t N = 64;
 			for (size_t n = 0; n < N; ++n) {
 				// Generate and compute a random direction in the hemisphere
 				double cos_theta = _distribution(_generator); // Let the first random number be equal to cos(theta)
@@ -154,19 +156,34 @@ bool Camera::shadowRay(const vec3& surface_point, const vec3& point_to_light)
 {
 	// Define a ray pointing towards the light source
 	Ray light_ray(surface_point, point_to_light);
-
 	IntersectionPoint light_path_point;
-	sphereIntersectionTest(light_ray, light_path_point);
 
-	// If distance is larger than 0.0 the intersection point exists in the ray's positive direction
-	if (light_path_point.distance > 0.0) {
-		// If the intersection distance is smaller than the distance to light source, we have a shadow point
-		if (light_path_point.distance < length(point_to_light)) {
-			return true;
+	bool intersection_found = false;
+
+	for (Triangle triangle : _specular_tetrahedron->triangles) {
+		double t, u, v = -1.0;
+		intersection_found = triangle.rayIntersection(light_ray, t, u, v);
+		if (intersection_found) {
+			light_path_point.distance = t;
+			break;
 		}
 	}
 
-	return false;
+	if (!intersection_found) {
+		double d_near, d_far = -1.0;
+		intersection_found = _specular_sphere->rayIntersection(light_ray, d_near, d_far);
+		if (intersection_found) {
+			light_path_point.distance = d_near;
+		}
+	}
+
+	if (!intersection_found) {
+		return false;
+	}
+
+	if (light_path_point.distance < length(point_to_light)) {
+		return true;
+	}
 }
 
 dvec3 Camera::computeDirectLight(const IntersectionPoint& surface_point, const vec3& light_position)
@@ -211,7 +228,7 @@ vec3 Camera::hemisphereSampleDirection(const double &cos_theta, const double &ra
 
 void Camera::triangleIntersectionTests(const Ray& ray, IntersectionPoint& closest_point)
 {
-	for (Triangle triangle : _triangle_objects->triangles) {
+	for (Triangle triangle : _diffuse_walls->triangles) {
 		double t, u, v = -1.0;
 		if (triangle.rayIntersection(ray, t, u, v) == true) {
 			// Depth test (if we have multiple intersections, save the closest)
@@ -226,20 +243,36 @@ void Camera::triangleIntersectionTests(const Ray& ray, IntersectionPoint& closes
 			}
 		}
 	}
+	
+	for (Triangle triangle : _specular_tetrahedron->triangles) {
+		double t, u, v = -1.0;
+		if (triangle.rayIntersection(ray, t, u, v) == true) {
+			// Depth test (if we have multiple intersections, save the closest)
+			if (closest_point.distance < 0.0 || closest_point.distance > t) {
+				// Save closest distance
+				closest_point.distance = t;
+				// Compute world coordinates from barycentric triangle coordinates
+				closest_point.position = barycentricToWorldCoordinates(triangle, u, v);
+				closest_point.normal = triangle.normal;
+				closest_point.color = triangle.color;
+				closest_point.type = IntersectionPoint::SurfaceType::Specular;
+			}
+		}
+	}
 }
 
 void Camera::sphereIntersectionTest(const Ray& ray, IntersectionPoint& closest_point)
 {
 	double d_near, d_far = -1.0;
-	if (_sphere->rayIntersection(ray, d_near, d_far) == true) {
+	if (_specular_sphere->rayIntersection(ray, d_near, d_far) == true) {
 		// Depth test (if we have multiple intersections, save the closest)
 		if (closest_point.distance < 0.0 || closest_point.distance > d_near) {
 			// Save closest distance
 			closest_point.distance = d_near;
 			// Compute the intersection point position
 			closest_point.position = ray.start_point + vec3(d_near, d_near, d_near) * ray.direction;
-			closest_point.normal = normalize(closest_point.position - _sphere->center);
-			closest_point.color = _sphere->color;
+			closest_point.normal = normalize(closest_point.position - _specular_sphere->center);
+			closest_point.color = _specular_sphere->color;
 			closest_point.type = IntersectionPoint::SurfaceType::Specular;
 		}
 	}

@@ -5,7 +5,7 @@
 #include <vector>
 #include <random>
 
-#include "TriangleData.h"
+#include "TriangleObject.h"
 #include "Bitmap.h"
 #include "Sphere.h"
 
@@ -53,7 +53,7 @@ public:
 	void setLightPosition(const vec3& position);
 
 	// Saves pointer to all scene objects used when rendering
-	void loadSceneObjects(TriangleData* objects, Sphere* sphere);
+	void loadSceneObjects(TriangleObject* walls, Sphere* sphere, TriangleObject* tetrahedron);
 	
 	// Render scene with ray tracing
 	void render();
@@ -64,8 +64,9 @@ private:
 	vec3 _eye_point;
 	Film _camera_film;
 
-	TriangleData* _triangle_objects;
-	Sphere* _sphere;
+	TriangleObject* _diffuse_walls;
+	TriangleObject* _specular_tetrahedron;
+	Sphere* _specular_sphere;
 	vec3 _light_position;
 
 	std::default_random_engine _generator;
