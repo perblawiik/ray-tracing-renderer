@@ -30,7 +30,7 @@ void Camera::render()
 			Ray ray(_eye_point, normalize(pixel - _eye_point));
 
 			// Number of ray reflections to trace
-			const int max_reflections = 3;
+			const int max_reflections = 2;
 
 			// Compute the incoming radiance
 			dvec3 final_color = tracePath(ray, max_reflections);
@@ -115,7 +115,7 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 			createLocalCoordinateSystem(closest_point.normal, local_x_axis, local_z_axis);
 
 			// Perform a Monte Carlo integration for indirect lighting with N samples
-			size_t N = 64;
+			size_t N = 16;
 			for (size_t n = 0; n < N; ++n) {
 				// Generate and compute a random direction in the hemisphere
 				double cos_theta = _distribution(_generator); // Let the first random number be equal to cos(theta)
