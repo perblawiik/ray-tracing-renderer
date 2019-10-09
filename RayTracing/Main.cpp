@@ -71,7 +71,7 @@ int main()
 
 	auto time_start = std::chrono::high_resolution_clock::now();
 
-	std::cout << "Rendering..." << std::endl;
+	std::cout << "Rendering... :)" << std::endl;
 
 	// Render from camera to bitmap image
 	camera.render();
