@@ -115,6 +115,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AreaLightSource.cpp" />
     <ClCompile Include="Bitmap.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -123,6 +124,7 @@
     <ClCompile Include="TriangleObject.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AreaLightSource.h" />
     <ClInclude Include="Bitmap.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Ray.h" />

@@ -280,9 +280,9 @@ void Camera::sphereIntersectionTest(const Ray& ray, IntersectionPoint& closest_p
 
 vec3 Camera::barycentricToWorldCoordinates(const Triangle& triangle, const double& u, const double& v) 
 {
-	vec3 u_vec(u, u , u);
-	vec3 v_vec(v, v, v);
-	vec3 one_vec(1.0, 1.0, 1.0);
+	vec3 u_vec(u);
+	vec3 v_vec(v);
+	vec3 one_vec(1.0);
 	return ((one_vec - u_vec - v_vec) * triangle.vertices[0]) + (u_vec * triangle.vertices[1]) + (v_vec * triangle.vertices[2]);
 }
 
