@@ -19,9 +19,20 @@ void Camera::setLightPosition(const vec3& position)
 	_light_position = position;
 }
 
+void Camera::addLightSource(AreaLightSource* light_source) 
+{
+	_light_source = light_source;
+}
+
 void Camera::render()
 {
 	for (int j = 0; j < _camera_film.height; ++j) {
+		// Print progress for every full percent
+		if (j % 8 == 0) {
+			float progress = ((float)j / (float)_camera_film.height) * 100.0;
+			std::cout << "Progress: " << progress << " %" << std::endl;
+		}
+
 		for (int i = 0; i < _camera_film.width; ++i) {
 			// Compute current pixel coordinates to world coordinates
 			vec3 pixel(_camera_film.position.x, (double)i * 0.0025 - 0.99875, -((double)j * 0.0025 - 0.99875));
@@ -30,10 +41,13 @@ void Camera::render()
 			Ray ray(_eye_point, normalize(pixel - _eye_point));
 
 			// Number of ray reflections to trace
-			const int max_reflections = 2;
+			const int max_reflections = 4;
+
+			// Number of hemispherical sample rays
+			const int N = 64;
 
 			// Compute the incoming radiance
-			dvec3 final_color = tracePath(ray, max_reflections);
+			dvec3 final_color = tracePath(ray, max_reflections, N);
 
 			// Save pixel color
 			_camera_film.pixel_data.emplace_back(final_color);
@@ -71,7 +85,7 @@ void Camera::createImage(const char* file_name)
 
 //***************** PRIVATE ****************//
 
-dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
+dvec3 Camera::tracePath(const Ray& ray, const int reflection_count, const int mc_sample_ray_count)
 {
 	// The closest intersection for current ray
 	IntersectionPoint closest_point;
@@ -87,39 +101,48 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		return dvec3(0.0);
 	}
 	else {
-		// Surface color * surface reflection
-		dvec3 albedo = (closest_point.color * 0.18);
-
-		// Compute direct light from light source
-		dvec3 direct_light = computeDirectLight(closest_point, _light_position) * (albedo / PI);
-
-		// Base case (if reflection count is zero, only return the direct light)
-		if (reflection_count == 0)
-			return direct_light;
-
-		dvec3 indirect_light(0.0);
+		// Light source
+		if (closest_point.type == IntersectionPoint::SurfaceType::LightSource) {
+			return _light_source->getColor();
+		}
 		// Specular surface
-		if (closest_point.type == IntersectionPoint::SurfaceType::Specular) {
+		else if (closest_point.type == IntersectionPoint::SurfaceType::Specular) {
+			// Base case (if reflection count is zero end recursion)
+			if (reflection_count <= 0)
+				return dvec3(0.0);
+
 			// Compute reflected ray
 			vec3 reflect_direction = reflect(ray.direction, closest_point.normal);
 			Ray reflected_ray(closest_point.position, reflect_direction);
 
 			double cos_theta = max(dot(closest_point.normal, reflected_ray.direction), 0.0);
+
 			// Recursive path tracing (perfect reflection)
-			indirect_light = tracePath(reflected_ray, reflection_count - 1) * cos_theta;
+			return tracePath(reflected_ray, reflection_count - 1, mc_sample_ray_count) * cos_theta;
 		} 
 		else { // Diffuse surface
+			// Lambertian BRDF
+			dvec3 brdf = closest_point.color / PI;
+
+			// Compute direct light from light source
+			dvec3 direct_light = computeDirectLight(closest_point, brdf, 20);
+
+			// Base case (if reflection count is zero, only return the direct light)
+			if (reflection_count <= 0)
+				return direct_light;
+
 			vec3 local_x_axis(0.0);
 			vec3 local_z_axis(0.0);
 			// Create a local coordinate system for the hemisphere of the intersection point with the surface normal as the y-axis
 			createLocalCoordinateSystem(closest_point.normal, local_x_axis, local_z_axis);
 
 			// Perform a Monte Carlo integration for indirect lighting with N samples
-			size_t N = 16;
-			for (size_t n = 0; n < N; ++n) {
+			dvec3 indirect_light(0.0);
+			for (size_t n = 0; n < mc_sample_ray_count; ++n) {
 				// Generate and compute a random direction in the hemisphere
 				double cos_theta = _distribution(_generator); // Let the first random number be equal to cos(theta)
 				double random_2 = _distribution(_generator);
+
 				vec3 sample_direction_local = hemisphereSampleDirection(cos_theta, random_2);
 
 				// Transform direction from local to world by multiplying with the local coordinate system matrix
@@ -134,25 +157,25 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 				Ray sample_ray(closest_point.position, sample_direction_world);
 
 				// Note that the first random variable corresponds to cos(theta) which gives us the diffuse distribution
-				indirect_light += tracePath(sample_ray, 0) * cos_theta;
+				indirect_light += tracePath(sample_ray, 0, mc_sample_ray_count / 2) * cos_theta;
 			}
 
 			// The indirect light needs to be divided by the pdf constant (probability density function)
 			// Note that the pdf is constant in this case because all of the random directions share the same probability (equiprobability)
 			double pdf = 1.0 / (2.0 * PI);
 			// Also divide the sum by N to complete the Monte Carlo sampling
-			indirect_light /= ((double)N * pdf);
+			indirect_light /= ((double)mc_sample_ray_count * pdf);
 
-			// Multiply the surface color with the light
-			indirect_light *= (albedo / PI);
+			// Multiply the brdf surface color with the light
+			indirect_light *= brdf;
+
+			// Combine the direct and indirect light and multiply with surface color
+			return (direct_light + indirect_light);
 		}
-
-		// Combine the direct and indirect light and multiply with surface color
-		return (direct_light + indirect_light);
 	}
 }
 
-bool Camera::shadowRay(const vec3& surface_point, const vec3& point_to_light)
+bool Camera::shadowRay(const vec3& surface_point, const vec3& point_to_light, const double& light_distance)
 {
 	// Define a ray pointing towards the light source
 	Ray light_ray(surface_point, point_to_light);
@@ -169,35 +192,50 @@ bool Camera::shadowRay(const vec3& surface_point, const vec3& point_to_light)
 		}
 	}
 
-	if (!intersection_found) {
-		double d_near, d_far = -1.0;
-		intersection_found = _specular_sphere->rayIntersection(light_ray, d_near, d_far);
-		if (intersection_found) {
-			light_path_point.distance = d_near;
+	// Shadow
+	if (intersection_found && light_path_point.distance < light_distance) {
+		return true;
+	}
+
+	double d_near, d_far = -1.0;
+	intersection_found = _specular_sphere->rayIntersection(light_ray, d_near, d_far);
+	if (intersection_found && d_near < light_path_point.distance) {
+		light_path_point.distance = d_near;
+	}
+
+	// Shadow
+	if (intersection_found && light_path_point.distance < light_distance) {
+		return true;
+	}
+
+	// No shadow
+	return false;
+}
+
+dvec3 Camera::computeDirectLight(const IntersectionPoint& surface_point, const dvec3& brdf, const size_t sample_ray_count)
+{
+	dvec3 direct_light(0.0);
+	std::vector<vec3> light_sample_points;
+
+	// Generate sample points on the area light source
+	for (size_t i = 0; i < sample_ray_count; i++) {
+		light_sample_points.push_back(_light_source->generateRandomSamplePoint());
+	}
+
+	// Cast a shadow ray for each sample point
+	for (auto sample_point : light_sample_points) {
+		vec3 point_to_light_direction = normalize(sample_point - surface_point.position);
+		double point_to_light_distance = distance(sample_point, surface_point.position);
+
+		if (!shadowRay(surface_point.position, point_to_light_direction, point_to_light_distance)) {
+			double cos_theta_out = max(dot(surface_point.normal, point_to_light_direction), 0.0);
+			double cos_theta_in = dot(-point_to_light_direction, _light_source->getNormal());
+			
+			direct_light += brdf * cos_theta_out * cos_theta_in / (point_to_light_distance * point_to_light_distance);
 		}
 	}
 
-	if (!intersection_found) {
-		return false;
-	}
-
-	if (light_path_point.distance < length(point_to_light)) {
-		return true;
-	}
-}
-
-dvec3 Camera::computeDirectLight(const IntersectionPoint& surface_point, const vec3& light_position)
-{
-	vec3 point_to_light_direction = normalize(light_position - surface_point.position);
-	if (!shadowRay(surface_point.position, point_to_light_direction)) {
-		dvec3 light_color(1.0, 1.0, 1.0);
-		double light_intensity = 15.0;
-
-		// Diffuse surface
-		double cos_theta = max(dot(surface_point.normal, point_to_light_direction), 0.0);
-		return light_color * light_intensity * cos_theta;
-	}
-	return dvec3(0.0);
+	return (direct_light * _light_source->getColor() * _light_source->getArea() * _light_source->getIntensity()) / (double) sample_ray_count;
 }
 
 void Camera::createLocalCoordinateSystem(const vec3& normal, vec3& local_x_axis, vec3& local_z_axis)
@@ -228,6 +266,7 @@ vec3 Camera::hemisphereSampleDirection(const double &cos_theta, const double &ra
 
 void Camera::triangleIntersectionTests(const Ray& ray, IntersectionPoint& closest_point)
 {
+	// Walls, ceiling and floor
 	for (Triangle triangle : _diffuse_walls->triangles) {
 		double t, u, v = -1.0;
 		if (triangle.rayIntersection(ray, t, u, v) == true) {
@@ -244,6 +283,7 @@ void Camera::triangleIntersectionTests(const Ray& ray, IntersectionPoint& closes
 		}
 	}
 	
+	// Tetrahedron
 	for (Triangle triangle : _specular_tetrahedron->triangles) {
 		double t, u, v = -1.0;
 		if (triangle.rayIntersection(ray, t, u, v) == true) {
@@ -259,6 +299,22 @@ void Camera::triangleIntersectionTests(const Ray& ray, IntersectionPoint& closes
 			}
 		}
 	}
+
+	// Area Light Source
+	double t, u, v = -1.0;
+	auto lightTriangle = _light_source->getTriangle();
+	if (lightTriangle->rayIntersection(ray, t, u, v) == true) {
+		// Depth test (if we have multiple intersections, save the closest)
+		if (closest_point.distance < 0.0 || closest_point.distance > t) {
+			// Save closest distance
+			closest_point.distance = t;
+			// Compute world coordinates from barycentric triangle coordinates
+			closest_point.position = barycentricToWorldCoordinates(*lightTriangle, u, v);
+			closest_point.normal = lightTriangle->normal;
+			closest_point.color = lightTriangle->color;
+			closest_point.type = IntersectionPoint::SurfaceType::LightSource;
+		}
+	}
 }
 
 void Camera::sphereIntersectionTest(const Ray& ray, IntersectionPoint& closest_point)
@@ -270,7 +326,9 @@ void Camera::sphereIntersectionTest(const Ray& ray, IntersectionPoint& closest_p
 			// Save closest distance
 			closest_point.distance = d_near;
 			// Compute the intersection point position
-			closest_point.position = ray.start_point + vec3(d_near, d_near, d_near) * ray.direction;
+			closest_point.position = ray.start_point + vec3(d_near) * ray.direction;
+
+			// Set attributes
 			closest_point.normal = normalize(closest_point.position - _specular_sphere->center);
 			closest_point.color = _specular_sphere->color;
 			closest_point.type = IntersectionPoint::SurfaceType::Specular;

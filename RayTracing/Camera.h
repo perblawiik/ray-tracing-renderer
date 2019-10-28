@@ -8,6 +8,7 @@
 #include "TriangleObject.h"
 #include "Bitmap.h"
 #include "Sphere.h"
+#include "AreaLightSource.h"
 
 using namespace glm;
 
@@ -18,7 +19,8 @@ struct IntersectionPoint
 	enum SurfaceType {
 		Diffuse,
 		Specular,
-		Transparent
+		Transparent,
+		LightSource
 	};
 
 	double distance;
@@ -51,6 +53,7 @@ public:
 	Camera(const size_t width, const size_t height, const vec3& eye);
 
 	void setLightPosition(const vec3& position);
+	void addLightSource(AreaLightSource* light_source);
 
 	// Saves pointer to all scene objects used when rendering
 	void loadSceneObjects(TriangleObject* walls, Sphere* sphere, TriangleObject* tetrahedron);
@@ -68,15 +71,16 @@ private:
 	TriangleObject* _specular_tetrahedron;
 	Sphere* _specular_sphere;
 	vec3 _light_position;
+	AreaLightSource* _light_source;
 
 	std::default_random_engine _generator;
 	std::uniform_real_distribution<double> _distribution;
 
-	dvec3 tracePath(const Ray& ray, const int reflection_count);
+	dvec3 tracePath(const Ray& ray, const int reflection_count, const int mc_sample_rays);
 
-	bool shadowRay(const vec3& surface_point, const vec3& point_to_light);
+	bool shadowRay(const vec3& surface_point, const vec3& point_to_light, const double& light_distance);
 
-	dvec3 computeDirectLight(const IntersectionPoint& surface_point, const vec3& light_position);
+	dvec3 computeDirectLight(const IntersectionPoint& surface_point, const dvec3& brdf, const size_t sample_ray_count);
 
 	vec3 hemisphereSampleDirection(const double &random_1, const double &random_2);
 

@@ -20,5 +20,5 @@ public:
 	bool rayIntersection(const Ray& ray, double& dNear, double& dFar);
 
 private:
-	double _radius;
+	double _radius2;
 };

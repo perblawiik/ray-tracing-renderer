@@ -9,6 +9,7 @@
 #include "TriangleObject.h"
 #include "Camera.h"
 #include "Sphere.h"
+#include "AreaLightSource.h"
 
 using namespace glm;
 
@@ -18,6 +19,14 @@ int main()
 	const int height = 800;
 	const vec3 camera_position(12.0, 0.0, 0.0);
 	const vec3 light_position(0.0, 0.0, 4.0);
+
+	AreaLightSource area_light_source(
+		vec3(0.0, 1.0, 4.999995), // V0
+		vec3(2.0, 0.0, 4.999995), // V1
+		vec3(0.0, -1.0, 4.999995), // V2
+		dvec3(1.0), // Color
+		250.0 // Intensity
+	);
 
 	TriangleObject walls;
 	{
@@ -57,8 +66,8 @@ int main()
 
 	TriangleObject tetrahedron;
 	{
-		vec3 color = vec3(1.0, 1.0, 1.0);
-		vec3 position = vec3(0.0, -4.0, -5.0);
+		dvec3 color(1.0, 1.0, 1.0);
+		vec3 position(0.0, -4.0, -5.0);
 		double scale = 4.0;
 		tetrahedron.createTetrahedron(color, position, scale);
 	}
@@ -68,10 +77,11 @@ int main()
 	Camera camera(width, height, camera_position);
 	camera.loadSceneObjects(&walls, &sphere, &tetrahedron);
 	camera.setLightPosition(light_position);
+	camera.addLightSource(&area_light_source);
 
 	auto time_start = std::chrono::high_resolution_clock::now();
 
-	std::cout << "Rendering... :O" << std::endl;
+	std::cout << "Rendering..." << std::endl;
 
 	// Render from camera to bitmap image
 	camera.render();

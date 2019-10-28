@@ -1,6 +1,6 @@
 #include "Triangle.h"
 
-Triangle::Triangle(const glm::vec3& color, const glm::vec3& normal, const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3)
+Triangle::Triangle(const glm::dvec3& color, const glm::vec3& normal, const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3)
 	: color(color), normal(normal)
 {
 	vertices.reserve(3);

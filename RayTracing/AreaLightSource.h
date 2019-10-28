@@ -3,6 +3,9 @@
 #include "glm\glm.hpp"
 
 #include <random>
+#include <iostream>
+
+#include "Triangle.h"
 
 class AreaLightSource 
 {
@@ -12,15 +15,23 @@ public:
 
 	glm::vec3 generateRandomSamplePoint();
 
+	// Getters
+	glm::vec3 getNormal();
+	glm::dvec3 getColor();
+
+	double getIntensity();
+	double getArea();
+
+	Triangle* getTriangle();
+
 private:
-	glm::vec3 _v0;
-	glm::vec3 _v1;
-	glm::vec3 _v2;
-
-	glm::dvec3 _light_color;
 	double _intensity;
+	double _area;
 
-	glm::vec3 _normal;
+	std::default_random_engine _generator;
+	std::uniform_real_distribution<double> _distribution;
+
+	Triangle _triangle;
 
 	glm::vec3 barycentricToWorldCoordinates(const double& u, const double& v);
 };

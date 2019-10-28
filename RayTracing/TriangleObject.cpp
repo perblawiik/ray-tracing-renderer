@@ -18,7 +18,7 @@ void TriangleObject::loadData(const double data[], const size_t num_triangles)
 	for (size_t i = 0; i < num_triangles; ++i) {
 		triangles.emplace_back(
 			Triangle(
-				glm::vec3(data[i * stride], data[i * stride + 1], data[i * stride + 2]),  // Color
+				glm::dvec3(data[i * stride], data[i * stride + 1], data[i * stride + 2]),  // Color
 				glm::vec3(data[i * stride + 3], data[i * stride + 4], data[i * stride + 5]),  // Normal
 				glm::vec3(data[i * stride + 6], data[i * stride + 7], data[i * stride + 8]),  // Vertex 1
 				glm::vec3(data[i * stride + 9], data[i * stride + 10], data[i * stride + 11]), // Vertex 2
