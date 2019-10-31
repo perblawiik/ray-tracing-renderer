@@ -25,7 +25,7 @@ int main()
 		vec3(2.0, 0.0, 4.999995), // V1
 		vec3(0.0, -1.0, 4.999995), // V2
 		dvec3(1.0), // Color
-		250.0 // Intensity
+		100.0 // Intensity
 	);
 
 	TriangleObject walls;

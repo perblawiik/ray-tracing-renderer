@@ -26,31 +26,34 @@ void Camera::addLightSource(AreaLightSource* light_source)
 
 void Camera::render()
 {
-	for (int j = 0; j < _camera_film.height; ++j) {
-		// Print progress for every full percent
-		if (j % 8 == 0) {
-			float progress = ((float)j / (float)_camera_film.height) * 100.0;
-			std::cout << "Progress: " << progress << " %" << std::endl;
-		}
+	// Number of sample rays per pixel
+	const int num_samples = 96;
+	for (int n = 0; n < num_samples; ++n) {
 
-		for (int i = 0; i < _camera_film.width; ++i) {
-			// Compute current pixel coordinates to world coordinates
-			vec3 pixel(_camera_film.position.x, (double)i * 0.0025 - 0.99875, -((double)j * 0.0025 - 0.99875));
+		// Print out the progress in percentage
+		float progress = (float)n / (float)num_samples;
+		std::cout << "Progress: " << progress * 100.0 << " %" << std::endl;
 
-			// Define the ray from camera eye to pixel
-			Ray ray(_eye_point, normalize(pixel - _eye_point));
+		for (int j = 0; j < _camera_film.height; ++j) {
+			for (int i = 0; i < _camera_film.width; ++i) {
+				// Compute current pixel coordinates to world coordinates
+				vec3 pixel_coord(_camera_film.position.x, (double)i * 0.0025 - 0.99875, -((double)j * 0.0025 - 0.99875));
 
-			// Number of ray reflections to trace
-			const int max_reflections = 4;
+				// Define the ray from camera eye to pixel
+				Ray ray(_eye_point, normalize(pixel_coord - _eye_point));
 
-			// Number of hemispherical sample rays
-			const int N = 64;
+				// Number of ray reflections to trace
+				const int max_reflections = 5;
 
-			// Compute the incoming radiance
-			dvec3 final_color = tracePath(ray, max_reflections, N);
+				// Compute the incoming radiance
+				dvec3 final_color = tracePath(ray, max_reflections);
 
-			// Save pixel color
-			_camera_film.pixel_data.emplace_back(final_color);
+				// Clamp the values between [0.0, 1.0]
+				clamp(final_color, 0.0, 1.0);
+	
+				// Save pixel color
+				_camera_film.addPixelData(i, j, final_color / (double)num_samples);
+			}
 		}
 	}
 }
@@ -85,8 +88,12 @@ void Camera::createImage(const char* file_name)
 
 //***************** PRIVATE ****************//
 
-dvec3 Camera::tracePath(const Ray& ray, const int reflection_count, const int mc_sample_ray_count)
+dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 {
+	// Base case (if reflection count is zero end recursion)
+	if (reflection_count == 0)
+		return dvec3(0.0);
+
 	// The closest intersection for current ray
 	IntersectionPoint closest_point;
 
@@ -100,78 +107,78 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count, const int mc
 	if (closest_point.distance < 0.0) {
 		return dvec3(0.0);
 	}
+
+	// Light source
+	if (closest_point.type == IntersectionPoint::SurfaceType::LightSource) {
+		return _light_source->getColor();
+	}
+	// Specular surface
+	else if (closest_point.type == IntersectionPoint::SurfaceType::Specular) {
+		// Compute reflected ray
+		vec3 reflect_direction = reflect(ray.direction, closest_point.normal);
+		Ray reflected_ray(closest_point.position, reflect_direction);
+
+		double cos_theta = max(dot(closest_point.normal, reflected_ray.direction), 0.0);
+
+		// Recursive path tracing (perfect reflection)
+		return tracePath(reflected_ray, reflection_count - 1) * cos_theta;
+	} 
+	// Diffuse surface
+	else if (closest_point.type == IntersectionPoint::SurfaceType::Diffuse) {
+		//** This should be in the material properties of the intersected surface **//
+		double reflection_coefficient = 0.75;
+		// Lambertian BRDF
+		dvec3 brdf = (closest_point.color) / PI;
+
+		// Let the first random number be equal to cos(theta)
+		double cos_theta = _distribution(_generator); 
+
+		// Russian roulette
+		double phi = (cos_theta * 2.0 * PI) / reflection_coefficient;
+		if (phi > 2.0 * PI) {
+			return dvec3(0.0);
+		}
+
+		double random_2 = _distribution(_generator);
+
+		// Generate and compute a random direction in the hemisphere
+		vec3 sample_direction_local = hemisphereSampleDirection(cos_theta, random_2);
+
+		// Create a local coordinate system for the hemisphere of the intersection point with the surface normal as the y-axis
+		vec3 local_x_axis(0.0);
+		vec3 local_z_axis(0.0);
+		createLocalCoordinateSystem(closest_point.normal, local_x_axis, local_z_axis);
+
+		// Transform direction from local to world by multiplying with the local coordinate system matrix
+		// Note that we only transform the direction so the translation part is not needed (in that case we would use a 4x4 matrix)
+		vec3 sample_direction_world(
+			sample_direction_local.x * local_z_axis.x + sample_direction_local.y * closest_point.normal.x + sample_direction_local.z * local_x_axis.x,
+			sample_direction_local.x * local_z_axis.y + sample_direction_local.y * closest_point.normal.y + sample_direction_local.z * local_x_axis.y,
+			sample_direction_local.x * local_z_axis.z + sample_direction_local.y * closest_point.normal.z + sample_direction_local.z * local_x_axis.z
+		);
+
+		// Create a ray from the sample direction
+		Ray sample_ray(closest_point.position, sample_direction_world);
+
+		dvec3 indirect_light = tracePath(sample_ray, reflection_count - 1);
+		
+		// The indirect light needs to be divided by the pdf constant (probability density function)
+		// Note that the pdf is constant in this case because all of the random directions share the same probability (equiprobability)
+		//double pdf = 1.0 / (2.0 * PI);
+		// Also divide the sum by N to complete the Monte Carlo sampling
+		//indirect_light /= pdf * ((double)mc_sample_ray_count);
+
+		// Multiply the brdf surface color with the light
+		indirect_light *= (brdf * PI) / reflection_coefficient;
+
+		// Compute direct light from light source
+		dvec3 direct_light = computeDirectLight(closest_point, brdf, 32);
+
+		// Combine the direct and indirect light and multiply with surface color
+		return (direct_light + indirect_light);
+	}
 	else {
-		// Light source
-		if (closest_point.type == IntersectionPoint::SurfaceType::LightSource) {
-			return _light_source->getColor();
-		}
-		// Specular surface
-		else if (closest_point.type == IntersectionPoint::SurfaceType::Specular) {
-			// Base case (if reflection count is zero end recursion)
-			if (reflection_count <= 0)
-				return dvec3(0.0);
-
-			// Compute reflected ray
-			vec3 reflect_direction = reflect(ray.direction, closest_point.normal);
-			Ray reflected_ray(closest_point.position, reflect_direction);
-
-			double cos_theta = max(dot(closest_point.normal, reflected_ray.direction), 0.0);
-
-			// Recursive path tracing (perfect reflection)
-			return tracePath(reflected_ray, reflection_count - 1, mc_sample_ray_count) * cos_theta;
-		} 
-		else { // Diffuse surface
-			// Lambertian BRDF
-			dvec3 brdf = closest_point.color / PI;
-
-			// Compute direct light from light source
-			dvec3 direct_light = computeDirectLight(closest_point, brdf, 20);
-
-			// Base case (if reflection count is zero, only return the direct light)
-			if (reflection_count <= 0)
-				return direct_light;
-
-			vec3 local_x_axis(0.0);
-			vec3 local_z_axis(0.0);
-			// Create a local coordinate system for the hemisphere of the intersection point with the surface normal as the y-axis
-			createLocalCoordinateSystem(closest_point.normal, local_x_axis, local_z_axis);
-
-			// Perform a Monte Carlo integration for indirect lighting with N samples
-			dvec3 indirect_light(0.0);
-			for (size_t n = 0; n < mc_sample_ray_count; ++n) {
-				// Generate and compute a random direction in the hemisphere
-				double cos_theta = _distribution(_generator); // Let the first random number be equal to cos(theta)
-				double random_2 = _distribution(_generator);
-
-				vec3 sample_direction_local = hemisphereSampleDirection(cos_theta, random_2);
-
-				// Transform direction from local to world by multiplying with the local coordinate system matrix
-				// Note that we only transform the direction so the translation part is not needed (in that case we would use a 4x4 matrix)
-				vec3 sample_direction_world(
-					sample_direction_local.x * local_z_axis.x + sample_direction_local.y * closest_point.normal.x + sample_direction_local.z * local_x_axis.x,
-					sample_direction_local.x * local_z_axis.y + sample_direction_local.y * closest_point.normal.y + sample_direction_local.z * local_x_axis.y,
-					sample_direction_local.x * local_z_axis.z + sample_direction_local.y * closest_point.normal.z + sample_direction_local.z * local_x_axis.z
-				);
-
-				// Create a ray from the sample direction
-				Ray sample_ray(closest_point.position, sample_direction_world);
-
-				// Note that the first random variable corresponds to cos(theta) which gives us the diffuse distribution
-				indirect_light += tracePath(sample_ray, 0, mc_sample_ray_count / 2) * cos_theta;
-			}
-
-			// The indirect light needs to be divided by the pdf constant (probability density function)
-			// Note that the pdf is constant in this case because all of the random directions share the same probability (equiprobability)
-			double pdf = 1.0 / (2.0 * PI);
-			// Also divide the sum by N to complete the Monte Carlo sampling
-			indirect_light /= ((double)mc_sample_ray_count * pdf);
-
-			// Multiply the brdf surface color with the light
-			indirect_light *= brdf;
-
-			// Combine the direct and indirect light and multiply with surface color
-			return (direct_light + indirect_light);
-		}
+		return dvec3(0.0);
 	}
 }
 

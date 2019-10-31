@@ -42,7 +42,13 @@ struct Film
 	Film(const size_t& width, const size_t& height, const vec3& position)
 		: width(width), height(height), position(position)
 	{
-		pixel_data.reserve(width*height);
+		pixel_data.resize(width * height);
+	}
+
+	void addPixelData(const size_t& x, const size_t& y, const dvec3& color) 
+	{
+		size_t index = y * width + x;
+		pixel_data[index] += color;
 	}
 };
 
@@ -76,7 +82,7 @@ private:
 	std::default_random_engine _generator;
 	std::uniform_real_distribution<double> _distribution;
 
-	dvec3 tracePath(const Ray& ray, const int reflection_count, const int mc_sample_rays);
+	dvec3 tracePath(const Ray& ray, const int reflection_count);
 
 	bool shadowRay(const vec3& surface_point, const vec3& point_to_light, const double& light_distance);
 
