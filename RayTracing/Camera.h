@@ -88,7 +88,7 @@ private:
 
 	dvec3 computeDirectLight(const IntersectionPoint& surface_point, const dvec3& brdf, const size_t sample_ray_count);
 
-	vec3 hemisphereSampleDirection(const double &random_1, const double &random_2);
+	vec3 hemisphereSampleDirection(const double &random_1, const double &random_2, const vec3& surface_normal);
 
 	void createLocalCoordinateSystem(const vec3& N, vec3& Nt, vec3& Nb);
 

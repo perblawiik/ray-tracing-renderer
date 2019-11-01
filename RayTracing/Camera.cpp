@@ -27,9 +27,8 @@ void Camera::addLightSource(AreaLightSource* light_source)
 void Camera::render()
 {
 	// Number of sample rays per pixel
-	const int num_samples = 96;
+	const int num_samples = 32;
 	for (int n = 0; n < num_samples; ++n) {
-
 		// Print out the progress in percentage
 		float progress = (float)n / (float)num_samples;
 		std::cout << "Progress: " << progress * 100.0 << " %" << std::endl;
@@ -118,10 +117,10 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		vec3 reflect_direction = reflect(ray.direction, closest_point.normal);
 		Ray reflected_ray(closest_point.position, reflect_direction);
 
-		double cos_theta = max(dot(closest_point.normal, reflected_ray.direction), 0.0);
+		//double cos_theta = max(dot(closest_point.normal, reflected_ray.direction), 0.0);
 
 		// Recursive path tracing (perfect reflection)
-		return tracePath(reflected_ray, reflection_count - 1) * cos_theta;
+		return tracePath(reflected_ray, reflection_count - 1);
 	} 
 	// Diffuse surface
 	else if (closest_point.type == IntersectionPoint::SurfaceType::Diffuse) {
@@ -142,34 +141,19 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		double random_2 = _distribution(_generator);
 
 		// Generate and compute a random direction in the hemisphere
-		vec3 sample_direction_local = hemisphereSampleDirection(cos_theta, random_2);
-
-		// Create a local coordinate system for the hemisphere of the intersection point with the surface normal as the y-axis
-		vec3 local_x_axis(0.0);
-		vec3 local_z_axis(0.0);
-		createLocalCoordinateSystem(closest_point.normal, local_x_axis, local_z_axis);
-
-		// Transform direction from local to world by multiplying with the local coordinate system matrix
-		// Note that we only transform the direction so the translation part is not needed (in that case we would use a 4x4 matrix)
-		vec3 sample_direction_world(
-			sample_direction_local.x * local_z_axis.x + sample_direction_local.y * closest_point.normal.x + sample_direction_local.z * local_x_axis.x,
-			sample_direction_local.x * local_z_axis.y + sample_direction_local.y * closest_point.normal.y + sample_direction_local.z * local_x_axis.y,
-			sample_direction_local.x * local_z_axis.z + sample_direction_local.y * closest_point.normal.z + sample_direction_local.z * local_x_axis.z
-		);
+		vec3 sample_direction_world = hemisphereSampleDirection(cos_theta, random_2, closest_point.normal);
 
 		// Create a ray from the sample direction
 		Ray sample_ray(closest_point.position, sample_direction_world);
 
-		dvec3 indirect_light = tracePath(sample_ray, reflection_count - 1);
+		// Recursion
+		dvec3 indirect_light = tracePath(sample_ray, reflection_count - 1) * brdf * phi;
 		
 		// The indirect light needs to be divided by the pdf constant (probability density function)
 		// Note that the pdf is constant in this case because all of the random directions share the same probability (equiprobability)
 		//double pdf = 1.0 / (2.0 * PI);
 		// Also divide the sum by N to complete the Monte Carlo sampling
-		//indirect_light /= pdf * ((double)mc_sample_ray_count);
-
-		// Multiply the brdf surface color with the light
-		indirect_light *= (brdf * PI) / reflection_coefficient;
+		//indirect_light /= pdf;
 
 		// Compute direct light from light source
 		dvec3 direct_light = computeDirectLight(closest_point, brdf, 32);
@@ -258,7 +242,7 @@ void Camera::createLocalCoordinateSystem(const vec3& normal, vec3& local_x_axis,
 	local_z_axis = cross(normal, local_x_axis);
 }
 
-vec3 Camera::hemisphereSampleDirection(const double &cos_theta, const double &random_2)
+vec3 Camera::hemisphereSampleDirection(const double &cos_theta, const double &random_2, const vec3& surface_normal)
 {
 	// We assume that the first random value is cos(theta), which is equal to the y-coordiante
 	// Theta is the inclination angle and phi is the azimuth angle
@@ -268,7 +252,22 @@ vec3 Camera::hemisphereSampleDirection(const double &cos_theta, const double &ra
 	float x = sin_theta * cos(phi);
 	float z = sin_theta * sin(phi);
 
-	return vec3(x, cos_theta, z);
+	vec3 sample_direction_local(x, cos_theta, z);
+
+	// Create a local coordinate system for the hemisphere of the intersection point with the surface normal as the y-axis
+	vec3 local_x_axis(0.0);
+	vec3 local_z_axis(0.0);
+	createLocalCoordinateSystem(surface_normal, local_x_axis, local_z_axis);
+
+	// Transform direction from local to world by multiplying with the local coordinate system matrix
+	// Note that we only transform the direction so the translation part is not needed (in that case we would use a 4x4 matrix)
+	vec3 sample_direction_world(
+		sample_direction_local.x * local_z_axis.x + sample_direction_local.y * surface_normal.x + sample_direction_local.z * local_x_axis.x,
+		sample_direction_local.x * local_z_axis.y + sample_direction_local.y * surface_normal.y + sample_direction_local.z * local_x_axis.y,
+		sample_direction_local.x * local_z_axis.z + sample_direction_local.y * surface_normal.z + sample_direction_local.z * local_x_axis.z
+	);
+
+	return sample_direction_world;
 }
 
 void Camera::triangleIntersectionTests(const Ray& ray, IntersectionPoint& closest_point)
