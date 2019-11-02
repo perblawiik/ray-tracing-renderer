@@ -19,7 +19,7 @@ Lambertian::Lambertian(const Lambertian& l)
 	: Lambertian(l.surface_type, l.color, l.reflection_coefficient)
 {}
 
-glm::dvec3 Lambertian::brdf(const glm::dvec3& surface_normal, const glm::dvec3& incoming_ray, const glm::dvec3& outgoing_ray)
+glm::dvec3 Lambertian::brdf(const glm::dvec3& surface_normal, const glm::dvec3& incoming_ray_direction, const glm::dvec3& outgoing_ray_direction)
 {
 	return color / 3.14159265358979323846;
 }

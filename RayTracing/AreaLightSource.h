@@ -12,11 +12,11 @@ class AreaLightSource
 {
 public:
 
-	AreaLightSource(const glm::dvec3& v0, const glm::dvec3& v1, const glm::dvec3& v2, const glm::dvec3& color, const double& watts);
+	AreaLightSource(const glm::dvec3& v0, const glm::dvec3& v1, const glm::dvec3& v2, Material* material, const double& watts);
 
 	glm::dvec3 generateRandomSamplePoint();
 
-	glm::dvec3 color;
+	Material* material;
 	double intensity;
 	Triangle triangle;
 

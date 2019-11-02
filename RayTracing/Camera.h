@@ -21,12 +21,11 @@ using namespace glm;
 struct IntersectionPoint
 {
 	double distance;
-	dvec3 color;
 	dvec3 position;
 	dvec3 normal;
-	Material::SurfaceType surface_type;
+	Material* material;
 
-	IntersectionPoint() : distance(-1.0), color(dvec3(0.0, 0.0, 0.0)), position(dvec3(0.0, 0.0, 0.0)), normal(dvec3(0.0, 0.0, 0.0)), surface_type(Material::SurfaceType::Diffuse){}
+	IntersectionPoint() : distance(-1.0), position(dvec3(0.0, 0.0, 0.0)), normal(dvec3(0.0, 0.0, 0.0)), material(nullptr) { }
 };
 
 struct Film

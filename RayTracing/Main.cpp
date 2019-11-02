@@ -24,16 +24,27 @@ int main()
 
 	Scene scene;
 
-	AreaLightSource area_light_source(
-		dvec3(0.0, 1.0, 4.999995), // V0
-		dvec3(2.0, 0.0, 4.999995), // V1
-		dvec3(0.0, -1.0, 4.999995), // V2
-		dvec3(1.0), // Color
-		100.0 // Watts
+	AreaLightSource area_light_source_1(
+		dvec3(3.0, 1.0, 4.999995), // V0
+		dvec3(5.0, 1.0, 4.999995), // V1
+		dvec3(3.0, -1.0, 4.999995), // V2
+		new Lambertian(Material::SurfaceType::LightSource, dvec3(1.0), 1.0), // Material
+		50.0 // Watts
 	);
-	scene.addLightSource(&area_light_source);
+	scene.addLightSource(&area_light_source_1);
 
-	TriangleObject floor(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0), 0.75));
+	AreaLightSource area_light_source_2(
+		dvec3(5.0, 1.0, 4.999995), // V0
+		dvec3(5.0, -1.0, 4.999995), // V1
+		dvec3(3.0, -1.0, 4.999995), // V2
+		new Lambertian(Material::SurfaceType::LightSource, dvec3(1.0), 1.0), // Material
+		50.0 // Watts
+	);
+	scene.addLightSource(&area_light_source_2);
+
+	double diffuse_reflection_coefficient = 0.75;
+
+	TriangleObject floor(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0), diffuse_reflection_coefficient));
 	{
 		const double triangle_data[] = {
 			// Normal		 Vertex 1            Vertex 2           Vertex 3
@@ -46,7 +57,7 @@ int main()
 	}
 	scene.addTriangleObject(&floor);
 
-	TriangleObject ceiling(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0), 0.75));
+	TriangleObject ceiling(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0), diffuse_reflection_coefficient));
 	{
 		const double triangle_data[] = {
 			// Normal		  Vertex 1           Vertex 2           Vertex 3
@@ -59,7 +70,7 @@ int main()
 	}
 	scene.addTriangleObject(&ceiling);
 
-	TriangleObject left_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0, 0.25, 0.25), 0.75));
+	TriangleObject left_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0, 0.25, 0.25), diffuse_reflection_coefficient));
 	{
 		const double triangle_data[] = {
 			// Normal		  Vertex 1           Vertex 2           Vertex 3
@@ -70,7 +81,7 @@ int main()
 	}
 	scene.addTriangleObject(&left_wall);
 
-	TriangleObject right_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(0.0, 1.0, 1.0), 0.75));
+	TriangleObject right_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(0.0, 1.0, 1.0), diffuse_reflection_coefficient));
 	{
 		const double triangle_data[] = {
 			// Normal		  Vertex 1           Vertex 2           Vertex 3
@@ -81,7 +92,7 @@ int main()
 	}
 	scene.addTriangleObject(&right_wall);
 
-	TriangleObject back_right_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(0.0, 1.0, 0.5), 0.75));
+	TriangleObject back_right_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(0.0, 1.0, 0.5), diffuse_reflection_coefficient));
 	{
 		const double triangle_data[] = {
 			// Normal		           Vertex 1            Vertex 2           Vertex 3
@@ -92,7 +103,7 @@ int main()
 	}
 	scene.addTriangleObject(&back_right_wall);
 
-	TriangleObject back_left_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0, 0.0, 1.0), 0.75));
+	TriangleObject back_left_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0, 0.0, 1.0), diffuse_reflection_coefficient));
 	{
 		const double triangle_data[] = {
 			// Normal		            Vertex 1           Vertex 2           Vertex 3
@@ -103,7 +114,7 @@ int main()
 	}
 	scene.addTriangleObject(&back_left_wall);
 
-	TriangleObject front_left_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(0.0, 0.0, 1.0), 0.75));
+	TriangleObject front_left_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(0.0, 0.0, 1.0), diffuse_reflection_coefficient));
 	{
 		const double triangle_data[] = {
 			// Normal		           Vertex 1           Vertex 2           Vertex 3
@@ -114,7 +125,7 @@ int main()
 	}
 	scene.addTriangleObject(&front_left_wall);
 
-	TriangleObject front_right_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0, 1.0, 0.0), 0.75));
+	TriangleObject front_right_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0, 1.0, 0.0), diffuse_reflection_coefficient));
 	{
 		const double triangle_data[] = {
 			// Normal		            Vertex 1           Vertex 2         Vertex 3
@@ -145,7 +156,7 @@ int main()
 	std::cout << "Rendering..." << std::endl;
 
 	// Render camera view
-	const int num_samples = 32;
+	const int num_samples = 64;
 	camera.render(num_samples);
 
 	auto time_end = std::chrono::high_resolution_clock::now();
@@ -157,7 +168,6 @@ int main()
 	camera.createImage(file_name.c_str());
 
 	//std::cout << "Render complete: " << run_time / 1000.0 << " seconds" << std::endl;
-
 	//system("pause");
 
 	return 0;

@@ -94,11 +94,11 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 	}
 
 	// Light source
-	if (closest_point.surface_type == Material::SurfaceType::LightSource) {
-		return closest_point.color;
+	if (closest_point.material->surface_type == Material::SurfaceType::LightSource) {
+		return closest_point.material->color;
 	}
 	// Specular surface
-	else if (closest_point.surface_type == Material::SurfaceType::Specular) {
+	else if (closest_point.material->surface_type == Material::SurfaceType::Specular) {
 		// Compute reflected ray
 		dvec3 reflect_direction = reflect(ray.direction, closest_point.normal);
 		Ray reflected_ray(closest_point.position, reflect_direction);
@@ -107,17 +107,12 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		return tracePath(reflected_ray, reflection_count - 1);
 	} 
 	// Diffuse surface
-	else if (closest_point.surface_type == Material::SurfaceType::Diffuse) {
-		//** This should be in the material properties of the intersected surface **//
-		double reflection_coefficient = 0.75;
-		// Lambertian BRDF
-		dvec3 brdf = (closest_point.color) / PI;
-
+	else if (closest_point.material->surface_type == Material::SurfaceType::Diffuse) {
 		// Let the first random number be equal to cos(theta)
 		double cos_theta = _distribution(_generator); 
 
 		// Russian roulette
-		double phi = (cos_theta * 2.0 * PI) / reflection_coefficient;
+		double phi = (cos_theta * 2.0 * PI) / closest_point.material->reflection_coefficient;
 		if (phi > 2.0 * PI) {
 			return dvec3(0.0);
 		}
@@ -130,6 +125,9 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		// Create a ray from the sample direction
 		Ray sample_ray(closest_point.position, sample_direction_world);
 
+		// BRDF
+		dvec3 brdf = closest_point.material->brdf(closest_point.normal, ray.direction, sample_ray.direction);
+
 		// Recursion
 		dvec3 indirect_light = tracePath(sample_ray, reflection_count - 1) * brdf * phi;
 		
@@ -140,7 +138,7 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		//indirect_light /= pdf;
 
 		// Compute direct light from light source
-		dvec3 direct_light = computeDirectLight(closest_point, brdf, 32);
+		dvec3 direct_light = computeDirectLight(closest_point, brdf, 20);
 
 		// Combine the direct and indirect light and multiply with surface color
 		return (direct_light + indirect_light);
@@ -208,8 +206,7 @@ dvec3 Camera::computeDirectLight(const IntersectionPoint& surface_point, const d
 			}
 		}
 		// Average the light
-		direct_light *= (light_source->color * light_source->intensity / (double)sample_ray_count);
-
+		direct_light *= (light_source->material->color * light_source->intensity / (double)sample_ray_count);
 		total_light += direct_light;
 	}
 	
@@ -271,8 +268,7 @@ void Camera::triangleIntersectionTests(const Ray& ray, IntersectionPoint& closes
 					// Compute world coordinates from barycentric triangle coordinates
 					closest_point.position = barycentricToWorldCoordinates(triangle, u, v);
 					closest_point.normal = triangle.normal;
-					closest_point.color = object->material->color;
-					closest_point.surface_type = object->material->surface_type;
+					closest_point.material = object->material;
 				}
 			}
 		}
@@ -289,8 +285,7 @@ void Camera::triangleIntersectionTests(const Ray& ray, IntersectionPoint& closes
 				// Compute world coordinates from barycentric triangle coordinates
 				closest_point.position = barycentricToWorldCoordinates(light_source->triangle, u, v);
 				closest_point.normal = light_source->triangle.normal;
-				closest_point.color = light_source->color;
-				closest_point.surface_type = Material::SurfaceType::LightSource;
+				closest_point.material = light_source->material;
 			}
 		}
 	}
@@ -310,8 +305,7 @@ void Camera::sphereIntersectionTest(const Ray& ray, IntersectionPoint& closest_p
 
 				// Set attributes
 				closest_point.normal = normalize(closest_point.position - sphere->center);
-				closest_point.color = sphere->material->color;
-				closest_point.surface_type = sphere->material->surface_type;
+				closest_point.material = sphere->material;
 			}
 		}
 	}

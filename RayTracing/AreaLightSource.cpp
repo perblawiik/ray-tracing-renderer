@@ -1,7 +1,7 @@
 #include "AreaLightSource.h"
 
-AreaLightSource::AreaLightSource(const glm::dvec3& v0, const glm::dvec3& v1, const glm::dvec3& v2, const glm::dvec3& color, const double& watts)
-	: color(color),
+AreaLightSource::AreaLightSource(const glm::dvec3& v0, const glm::dvec3& v1, const glm::dvec3& v2, Material* material, const double& watts)
+	: material(material),
 	intensity(watts * glm::length(glm::cross(v1 - v0, v2 - v0)) * 0.5),
 	triangle(glm::normalize(glm::cross(v1 - v0, v2 - v0)), v0, v1, v2),
 	_distribution(std::uniform_real_distribution<double>(0.0, 1.0))
