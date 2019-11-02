@@ -1,7 +1,9 @@
 #pragma once
 
-#include "glm\vec3.hpp"
+#include "glm/vec3.hpp"
+#include "glm/gtc/constants.hpp"
 
+#include <omp.h>
 #include <vector>
 #include <random>
 
@@ -96,7 +98,7 @@ private:
 
 	void sphereIntersectionTest(const Ray& ray, IntersectionPoint& closest_point);
 
-	vec3 barycentricToWorldCoordinates(const Triangle& triangle, const double& u, const double& v);
+	inline vec3 barycentricToWorldCoordinates(const Triangle& triangle, const double& u, const double& v);
 
-	double max(const double& a, const double& b);
+	inline double max(const double& a, const double& b);
 };

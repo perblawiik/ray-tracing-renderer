@@ -11,7 +11,11 @@ struct Material
 		LightSource
 	};
 
+	// Constructor
 	Material(const SurfaceType& type_, const glm::dvec3 color_, const double& reflection_coeff_);
+
+	// Copy constructor
+	Material(const Material& m);
 
 	glm::dvec3 brdf(const glm::dvec3& surface_normal, const glm::dvec3& incoming_ray, const glm::dvec3& outgoing_ray);
 
@@ -22,7 +26,12 @@ struct Material
 
 struct Lambertian : public Material
 {
-	Lambertian(const SurfaceType& type_, const glm::dvec3 color_, const double& reflection_coeff_)
-		: Material(type_, color_, reflection_coeff_)
-	{}
+	// Constructor
+	Lambertian(const SurfaceType& type_, const glm::dvec3 color_, const double& reflection_coeff_);
+
+	// Copy constructor
+	Lambertian(const Lambertian& l);
+
+	// Bidirectional Distribution Function
+	glm::dvec3 brdf(const glm::dvec3& surface_normal, const glm::dvec3& incoming_ray, const glm::dvec3& outgoing_ray);
 };

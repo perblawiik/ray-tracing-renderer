@@ -1,22 +1,20 @@
 #pragma once
 
+#include "Object.h"
 #include "Ray.h"
 
 #include "glm/glm.hpp"
 
 #include <cmath>
 #include <algorithm> 
-#include <iostream>
-
-using namespace glm;
 
 class Sphere
 {
 public:
-	vec3 color;
-	vec3 center;
+	glm::vec3 color;
+	glm::vec3 center;
 
-	Sphere(const vec3& color, const vec3& center, const double& radius);
+	Sphere(const glm::vec3& color, const glm::vec3& center, const double& radius);
 	bool rayIntersection(const Ray& ray, double& dNear, double& dFar);
 
 private:

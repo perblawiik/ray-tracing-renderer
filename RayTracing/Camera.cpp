@@ -26,13 +26,18 @@ void Camera::addLightSource(AreaLightSource* light_source)
 
 void Camera::render()
 {
+	// Number of ray reflections to trace
+	const int max_reflections = 5;
+
 	// Number of sample rays per pixel
 	const int num_samples = 32;
+
 	for (int n = 0; n < num_samples; ++n) {
 		// Print out the progress in percentage
 		float progress = (float)n / (float)num_samples;
 		std::cout << "Progress: " << progress * 100.0 << " %" << std::endl;
 
+		#pragma omp parallel for schedule(dynamic)
 		for (int j = 0; j < _camera_film.height; ++j) {
 			for (int i = 0; i < _camera_film.width; ++i) {
 				// Compute current pixel coordinates to world coordinates
@@ -40,9 +45,6 @@ void Camera::render()
 
 				// Define the ray from camera eye to pixel
 				Ray ray(_eye_point, normalize(pixel_coord - _eye_point));
-
-				// Number of ray reflections to trace
-				const int max_reflections = 5;
 
 				// Compute the incoming radiance
 				dvec3 final_color = tracePath(ray, max_reflections);
@@ -116,8 +118,6 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		// Compute reflected ray
 		vec3 reflect_direction = reflect(ray.direction, closest_point.normal);
 		Ray reflected_ray(closest_point.position, reflect_direction);
-
-		//double cos_theta = max(dot(closest_point.normal, reflected_ray.direction), 0.0);
 
 		// Recursive path tracing (perfect reflection)
 		return tracePath(reflected_ray, reflection_count - 1);
