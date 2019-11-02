@@ -1,7 +1,7 @@
 #include "Triangle.h"
 
-Triangle::Triangle(const glm::dvec3& color, const glm::vec3& normal, const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3)
-	: color(color), normal(normal)
+Triangle::Triangle(const glm::dvec3& normal, const glm::dvec3& v1, const glm::dvec3& v2, const glm::dvec3& v3)
+	: normal(normal)
 {
 	vertices.reserve(3);
 	vertices.emplace_back(v1);
@@ -11,9 +11,9 @@ Triangle::Triangle(const glm::dvec3& color, const glm::vec3& normal, const glm::
 
 bool Triangle::rayIntersection(const Ray& ray, double& t, double& u, double& v)
 {
-	glm::vec3 E_1 = vertices[1] - vertices[0];
-	glm::vec3 E_2 = vertices[2] - vertices[0];
-	glm::vec3 P = glm::cross(ray.direction, E_2);
+	glm::dvec3 E_1 = vertices[1] - vertices[0];
+	glm::dvec3 E_2 = vertices[2] - vertices[0];
+	glm::dvec3 P = glm::cross(ray.direction, E_2);
 
 	double det = glm::dot(P, E_1);
 
@@ -22,7 +22,7 @@ bool Triangle::rayIntersection(const Ray& ray, double& t, double& u, double& v)
 		return false;
 	}
 
-	glm::vec3 T = ray.start_point - vertices[0];
+	glm::dvec3 T = ray.start_point - vertices[0];
 	double det_inversed = 1.0 / det;
 	u = glm::dot(P, T) * det_inversed;
 
@@ -30,7 +30,7 @@ bool Triangle::rayIntersection(const Ray& ray, double& t, double& u, double& v)
 		return false;
 	}
 
-	glm::vec3 Q = cross(T, E_1);
+	glm::dvec3 Q = cross(T, E_1);
 	v = glm::dot(Q, ray.direction) * det_inversed;
 
 	if (v < 0.0 || u + v > 1.0) {

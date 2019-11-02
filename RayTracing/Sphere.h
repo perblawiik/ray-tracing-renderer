@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Object.h"
+#include "Material.h"
 #include "Ray.h"
 
 #include "glm/glm.hpp"
@@ -11,11 +11,11 @@
 class Sphere
 {
 public:
-	glm::vec3 color;
-	glm::vec3 center;
+	Material* material;
+	glm::dvec3 center;
 
-	Sphere(const glm::vec3& color, const glm::vec3& center, const double& radius);
-	bool rayIntersection(const Ray& ray, double& dNear, double& dFar);
+	Sphere(Material* materia, const glm::dvec3& center, const double& radius);
+	bool rayIntersection(const Ray& ray, double& d_near, double& d_far);
 
 private:
 	double _radius2;

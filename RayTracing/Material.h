@@ -12,14 +12,17 @@ struct Material
 	};
 
 	// Constructor
-	Material(const SurfaceType& type_, const glm::dvec3 color_, const double& reflection_coeff_);
+	Material(const SurfaceType& type, const glm::dvec3 color, const double& reflection_coeff);
 
 	// Copy constructor
 	Material(const Material& m);
 
-	glm::dvec3 brdf(const glm::dvec3& surface_normal, const glm::dvec3& incoming_ray, const glm::dvec3& outgoing_ray);
+	// Destructor
+	virtual ~Material() = default;
 
-	SurfaceType type;
+	virtual glm::dvec3 brdf(const glm::dvec3& surface_normal, const glm::dvec3& incoming_ray, const glm::dvec3& outgoing_ray) = 0;
+
+	SurfaceType surface_type;
 	glm::dvec3 color;
 	double reflection_coefficient;
 };
@@ -27,11 +30,11 @@ struct Material
 struct Lambertian : public Material
 {
 	// Constructor
-	Lambertian(const SurfaceType& type_, const glm::dvec3 color_, const double& reflection_coeff_);
+	Lambertian(const SurfaceType& type, const glm::dvec3 color, const double& reflection_coeff);
 
 	// Copy constructor
 	Lambertian(const Lambertian& l);
 
 	// Bidirectional Distribution Function
-	glm::dvec3 brdf(const glm::dvec3& surface_normal, const glm::dvec3& incoming_ray, const glm::dvec3& outgoing_ray);
+	glm::dvec3 brdf(const glm::dvec3& surface_normal, const glm::dvec3& incoming_ray, const glm::dvec3& outgoing_ray) override;
 };

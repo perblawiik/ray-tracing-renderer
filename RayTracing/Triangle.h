@@ -10,12 +10,11 @@
 class Triangle
 {
 public:
-	glm::dvec3 color;
-	glm::vec3 normal;
-	std::vector<glm::vec3> vertices;
+	glm::dvec3 normal;
+	std::vector<glm::dvec3> vertices;
 
 	// Constructor
-	Triangle(const glm::dvec3& color, const glm::vec3& normal, const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3);
+	Triangle(const glm::dvec3& normal, const glm::dvec3& v1, const glm::dvec3& v2, const glm::dvec3& v3);
 
 	bool rayIntersection(const Ray& ray, double& t, double& u, double& v);
 

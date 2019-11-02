@@ -4,8 +4,8 @@
 
 struct Ray
 {
-	glm::vec3 start_point;
-	glm::vec3 direction;
+	glm::dvec3 start_point;
+	glm::dvec3 direction;
 
-	inline Ray(const glm::vec3& start, const glm::vec3& direction) : start_point(start), direction(direction) { }
+	inline Ray(const glm::dvec3& start, const glm::dvec3& direction) : start_point(start), direction(direction) { }
 };

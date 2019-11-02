@@ -7,10 +7,12 @@
 #include <vector>
 #include <random>
 
+#include "Material.h"
 #include "TriangleObject.h"
 #include "Bitmap.h"
 #include "Sphere.h"
 #include "AreaLightSource.h"
+#include "Scene.h"
 
 using namespace glm;
 
@@ -18,30 +20,23 @@ using namespace glm;
 
 struct IntersectionPoint
 {
-	enum SurfaceType {
-		Diffuse,
-		Specular,
-		Transparent,
-		LightSource
-	};
-
 	double distance;
 	dvec3 color;
-	vec3 position;
-	vec3 normal;
-	SurfaceType type;
+	dvec3 position;
+	dvec3 normal;
+	Material::SurfaceType surface_type;
 
-	IntersectionPoint() : distance(-1.0), color(dvec3(0.0, 0.0, 0.0)), position(vec3(0.0, 0.0, 0.0)), normal(vec3(0.0, 0.0, 0.0)), type(SurfaceType::Diffuse){}
+	IntersectionPoint() : distance(-1.0), color(dvec3(0.0, 0.0, 0.0)), position(dvec3(0.0, 0.0, 0.0)), normal(dvec3(0.0, 0.0, 0.0)), surface_type(Material::SurfaceType::Diffuse){}
 };
 
 struct Film
 {
 	size_t width;
 	size_t height;
-	vec3 position;
+	dvec3 position;
 	std::vector<dvec3> pixel_data;
 
-	Film(const size_t& width, const size_t& height, const vec3& position)
+	Film(const size_t& width, const size_t& height, const dvec3& position)
 		: width(width), height(height), position(position)
 	{
 		pixel_data.resize(width * height);
@@ -58,47 +53,39 @@ class Camera
 {
 public:
 	// Constructor
-	Camera(const size_t width, const size_t height, const vec3& eye);
+	Camera(const size_t width, const size_t height, const dvec3& eye);
 
-	void setLightPosition(const vec3& position);
-	void addLightSource(AreaLightSource* light_source);
-
-	// Saves pointer to all scene objects used when rendering
-	void loadSceneObjects(TriangleObject* walls, Sphere* sphere, TriangleObject* tetrahedron);
+	void loadScene(Scene* scene);
 	
 	// Render scene with ray tracing
-	void render();
+	void render(const int& num_samples);
 
 	void createImage(const char* file_name);
 
 private:
-	vec3 _eye_point;
+	dvec3 _eye_point;
 	Film _camera_film;
 
-	TriangleObject* _diffuse_walls;
-	TriangleObject* _specular_tetrahedron;
-	Sphere* _specular_sphere;
-	vec3 _light_position;
-	AreaLightSource* _light_source;
+	Scene* _scene;
 
 	std::default_random_engine _generator;
 	std::uniform_real_distribution<double> _distribution;
 
 	dvec3 tracePath(const Ray& ray, const int reflection_count);
 
-	bool shadowRay(const vec3& surface_point, const vec3& point_to_light, const double& light_distance);
+	bool shadowRay(const dvec3& surface_point, const dvec3& point_to_light, const double& light_distance);
 
 	dvec3 computeDirectLight(const IntersectionPoint& surface_point, const dvec3& brdf, const size_t sample_ray_count);
 
-	vec3 hemisphereSampleDirection(const double &random_1, const double &random_2, const vec3& surface_normal);
+	dvec3 hemisphereSampleDirection(const double &random_1, const double &random_2, const dvec3& surface_normal);
 
-	void createLocalCoordinateSystem(const vec3& N, vec3& Nt, vec3& Nb);
+	void createLocalCoordinateSystem(const dvec3& N, dvec3& Nt, dvec3& Nb);
 
 	void triangleIntersectionTests(const Ray& ray, IntersectionPoint& closest_point);
 
 	void sphereIntersectionTest(const Ray& ray, IntersectionPoint& closest_point);
 
-	inline vec3 barycentricToWorldCoordinates(const Triangle& triangle, const double& u, const double& v);
+	inline dvec3 barycentricToWorldCoordinates(const Triangle& triangle, const double& u, const double& v);
 
 	inline double max(const double& a, const double& b);
 };
