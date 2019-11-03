@@ -11,7 +11,7 @@
 #include "Camera.h"
 #include "Sphere.h"
 #include "AreaLightSource.h"
-#include "Material.h"
+#include "Lambertian.h"
 #include "Scene.h"
 
 using namespace glm;
@@ -162,7 +162,7 @@ int main()
 	auto time_end = std::chrono::high_resolution_clock::now();
 	auto run_time = std::chrono::duration<double, std::milli>(time_end - time_start).count();
 
-	std::string file_name = "render_N" + std::to_string(num_samples) + "_" + std::to_string((int)(run_time / 1000.0)) + "s.bmp";
+	std::string file_name = "Render/render_N" + std::to_string(num_samples) + "_" + std::to_string((int)(run_time / 1000.0)) + "s.bmp";
 
 	// Create and save image file
 	camera.createImage(file_name.c_str());

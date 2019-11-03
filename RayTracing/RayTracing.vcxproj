@@ -119,6 +119,7 @@
     <ClCompile Include="AreaLightSource.cpp" />
     <ClCompile Include="Bitmap.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="Lambertian.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Sphere.cpp" />
@@ -129,6 +130,7 @@
     <ClInclude Include="AreaLightSource.h" />
     <ClInclude Include="Bitmap.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Lambertian.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Ray.h" />
     <ClInclude Include="Scene.h" />
