@@ -1,6 +1,6 @@
 #pragma once
 
-#include "glm\glm.hpp"
+#include "glm\vec3.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -18,12 +18,24 @@ using namespace glm;
 
 int main()
 {
-	const int width = 800;
-	const int height = 800;
-	const dvec3 camera_position(12.0, 0.0, 0.0);
+	//******** 1. Set up the camera ********//
+	//--------------------------------------//
+	
+	// Pixel dimensions for the image to render
+	const int width = 500;
+	const int height = 500;
 
+	const dvec3 camera_position(12.0, 0.0, 0.0);
+	Camera camera(width, height, camera_position);
+
+	//******** 2. Set up the scene ********//
+	//-------------------------------------//
+
+	// Initiate the scene component that will store all the scene objects
 	Scene scene;
 
+	// Create two triangular area light sources to form one rectangular light
+	
 	AreaLightSource area_light_source_1(
 		dvec3(3.0, 1.0, 4.999995), // V0
 		dvec3(5.0, 1.0, 4.999995), // V1
@@ -41,9 +53,11 @@ int main()
 		50.0 // Watts
 	);
 	scene.addLightSource(&area_light_source_2);
-
+	
+	// Define the reflection coefficient used on all diffuse surfaces (walls, ceiling, floor) 
 	double diffuse_reflection_coefficient = 0.75;
 
+	// Define the room (walls, ceiling, floor)
 	TriangleObject floor(new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0), diffuse_reflection_coefficient));
 	{
 		const double triangle_data[] = {
@@ -136,6 +150,7 @@ int main()
 	}
 	scene.addTriangleObject(&front_right_wall);
 
+	// Define a specular tetrahedron
 	TriangleObject specular_tetrahedron(new Lambertian(Material::SurfaceType::Specular, dvec3(1.0, 1.0, 1.0), 1.0));
 	{
 		dvec3 position(0.0, -4.0, -5.0);
@@ -144,19 +159,23 @@ int main()
 	}
 	scene.addTriangleObject(&specular_tetrahedron);
 	
+	// Define a specular sphere
 	Lambertian* specular_sphere_material = new Lambertian(Material::SurfaceType::Specular, dvec3(1.0, 1.0, 1.0), 1.0);
 	Sphere specular_sphere(specular_sphere_material, dvec3(3.0, 1.0, -2.5), 2.0);
 	scene.addSphere(&specular_sphere);
-
-	Camera camera(width, height, camera_position);
+	
+	// Add a pointer to the scene component to the camera
 	camera.loadScene(&scene);
+
+	//******** 3. Render the scene ********//
+	//-------------------------------------//
 
 	auto time_start = std::chrono::high_resolution_clock::now();
 
 	std::cout << "Rendering..." << std::endl;
 
 	// Render camera view
-	const int num_samples = 64;
+	const int num_samples = 50;
 	camera.render(num_samples);
 
 	auto time_end = std::chrono::high_resolution_clock::now();

@@ -130,6 +130,7 @@
     <ClInclude Include="AreaLightSource.h" />
     <ClInclude Include="Bitmap.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Transform.h" />
     <ClInclude Include="Lambertian.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Ray.h" />

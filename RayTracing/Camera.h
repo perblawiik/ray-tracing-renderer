@@ -1,6 +1,8 @@
 #pragma once
 
 #include "glm/vec3.hpp"
+#include "glm/mat4x4.hpp"
+#include "glm/gtc/type_ptr.hpp"
 #include "glm/gtc/constants.hpp"
 
 #include <omp.h>
@@ -13,6 +15,7 @@
 #include "Sphere.h"
 #include "AreaLightSource.h"
 #include "Scene.h"
+#include "Transform.h"
 
 using namespace glm;
 
@@ -67,6 +70,10 @@ private:
 
 	Scene* _scene;
 
+	dmat4 _transform_matrix;
+
+	double _pixel_width;
+
 	std::default_random_engine _generator;
 	std::uniform_real_distribution<double> _distribution;
 
@@ -87,4 +94,10 @@ private:
 	inline dvec3 barycentricToWorldCoordinates(const Triangle& triangle, const double& u, const double& v);
 
 	inline double max(const double& a, const double& b);
+
+	void setupCameraMatrix();
+
+	void computePixelWidth();
+
+	inline dvec2 normalizedPixelCoord(const int& x, const int& y);
 };

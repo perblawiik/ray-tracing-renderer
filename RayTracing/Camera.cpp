@@ -3,7 +3,10 @@
 Camera::Camera(const size_t width, const size_t height, const dvec3& eye)
 	: _eye_point(eye), _camera_film(width, height, dvec3(_eye_point.x - 1.0, 0.0, 0.0)), _scene(nullptr),
 	_distribution(std::uniform_real_distribution<double>(0.0, 1.0))
-{ }
+{
+	setupCameraMatrix();
+	computePixelWidth();
+}
 
 void Camera::loadScene(Scene* scene)
 {
@@ -12,6 +15,10 @@ void Camera::loadScene(Scene* scene)
 
 void Camera::render(const int& num_samples)
 {
+	// Image dimensions
+	const size_t height = _camera_film.height;
+	const size_t width = _camera_film.width;
+
 	// Number of ray reflections to trace
 	const int max_reflections = 5;
 
@@ -21,14 +28,25 @@ void Camera::render(const int& num_samples)
 		float progress = (float)n / (float)num_samples;
 		std::cout << "Progress: " << progress * 100.0 << " %" << std::endl;
 
+		// Parallization with OpenMP
 		#pragma omp parallel for schedule(dynamic)
-		for (int j = 0; j < _camera_film.height; ++j) {
-			for (int i = 0; i < _camera_film.width; ++i) {
-				// Compute current pixel coordinates to world coordinates
-				dvec3 pixel_coord(_camera_film.position.x, (double)i * 0.0025 - 0.99875, -((double)j * 0.0025 - 0.99875));
+		for (int pixel_y = 0; pixel_y < height; ++pixel_y) {
+			for (int pixel_x = 0; pixel_x < width; ++pixel_x) {
+				// Normalize coordinates by transforming from [0 : width/height] to the range [-1.0 : 1.0]
+				dvec2 pixel_normalized = normalizedPixelCoord(pixel_x, pixel_y);
+
+				// Generate a random offset in the pixel plane (used for ray randomization)
+				double dx = _distribution(_generator) * _pixel_width - (0.5 * _pixel_width);
+				double dy = _distribution(_generator) * _pixel_width - (0.5 * _pixel_width);
+
+				// Replace aliasing with noise by adding the random offset to the pixel
+				dvec4 pixel_sample(pixel_normalized.x + dx, pixel_normalized.y + dy, 1.0, 1.0);
+
+				// Transform screen coordinates to world coordinates
+				dvec3 pixel_world(_transform_matrix * pixel_sample);
 
 				// Define the ray from camera eye to pixel
-				Ray ray(_eye_point, normalize(pixel_coord - _eye_point));
+				Ray ray(_eye_point, normalize(pixel_world));
 
 				// Compute the incoming radiance
 				dvec3 final_color = tracePath(ray, max_reflections);
@@ -37,7 +55,7 @@ void Camera::render(const int& num_samples)
 				clamp(final_color, 0.0, 1.0);
 	
 				// Save pixel color
-				_camera_film.addPixelData(i, j, final_color / (double)num_samples);
+				_camera_film.addPixelData(pixel_x, pixel_y, final_color / (double)num_samples);
 			}
 		}
 	}
@@ -322,4 +340,45 @@ dvec3 Camera::barycentricToWorldCoordinates(const Triangle& triangle, const doub
 double Camera::max(const double& a, const double& b) 
 {
 	return (a < b) ? b : a;
+}
+
+void Camera::setupCameraMatrix()
+{
+	// Perspective projection matrix
+	double projection_matrix[16] = { 0 };
+	double aspect_ratio = (double)_camera_film.width / (double)_camera_film.height;
+	double fov = pi<double>() / 2.0; // ~ 90 degrees for the field of view
+	Transform::perspective(projection_matrix, fov, aspect_ratio, 1.0, 1000.0);
+
+	// Camera view transform
+	Transform camera_view;
+	camera_view.setPosition(_eye_point.x, _eye_point.y, _eye_point.z);
+	camera_view.setRotation(0.0, 90.0, -90.0);
+
+	// Invert the view matrix since it's a camera view
+	Transform::invertMatrix(camera_view.matrix, camera_view.matrix);
+
+	// Combine perspective projection and camera view
+	double combined_matrix[16] = { 0.0 };
+	// Combine the transform matrix for perspective and camera view
+	Transform::multiply(projection_matrix, camera_view.matrix, combined_matrix);
+	// Invert the transform matrix since we are reversing the process (from normalized device coordinates to world coordinates)
+	Transform::invertMatrix(combined_matrix, combined_matrix);
+
+	// Final transform that can be used to convert pixel coordinates to world coordinates
+	_transform_matrix = make_mat4(combined_matrix);
+}
+
+void Camera::computePixelWidth()
+{
+	dvec2 p_1 = normalizedPixelCoord(0, 0);
+	dvec2 p_2 = normalizedPixelCoord(1, 0);
+
+	_pixel_width = glm::distance(dvec3(_transform_matrix * vec4(p_1.x, p_1.y, 1.0, 1.0)), dvec3(_transform_matrix * vec4(p_2.x, p_2.y, 1.0, 1.0)));
+	std::cout << _pixel_width << std::endl;
+}
+
+dvec2 Camera::normalizedPixelCoord(const int& x, const int& y)
+{
+	return dvec2(1.0 - (x / (_camera_film.width  * 0.5)), (y / (_camera_film.height * 0.5)) - 1.0);
 }
