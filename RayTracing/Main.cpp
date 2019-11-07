@@ -22,8 +22,8 @@ int main()
 	//--------------------------------------//
 	
 	// Pixel dimensions for the image to render
-	const int width = 500;
-	const int height = 500;
+	const int width = 640;
+	const int height = 480;
 
 	const dvec3 camera_position(12.0, 0.0, 0.0);
 	Camera camera(width, height, camera_position);
@@ -35,13 +35,12 @@ int main()
 	Scene scene;
 
 	// Create two triangular area light sources to form one rectangular light
-	
 	AreaLightSource area_light_source_1(
 		dvec3(3.0, 1.0, 4.999995), // V0
 		dvec3(5.0, 1.0, 4.999995), // V1
 		dvec3(3.0, -1.0, 4.999995), // V2
 		new Lambertian(Material::SurfaceType::LightSource, dvec3(1.0), 1.0), // Material
-		50.0 // Watts
+		50 // Watts
 	);
 	scene.addLightSource(&area_light_source_1);
 
@@ -175,13 +174,16 @@ int main()
 	std::cout << "Rendering..." << std::endl;
 
 	// Render camera view
-	const int num_samples = 50;
+	const int num_samples = 64;
 	camera.render(num_samples);
 
 	auto time_end = std::chrono::high_resolution_clock::now();
 	auto run_time = std::chrono::duration<double, std::milli>(time_end - time_start).count();
 
-	std::string file_name = "Render/render_N" + std::to_string(num_samples) + "_" + std::to_string((int)(run_time / 1000.0)) + "s.bmp";
+	std::string resolution = std::to_string(width) + "x" + std::to_string(height);
+	std::string samples = "N" + std::to_string(num_samples);
+	std::string time = std::to_string((int)(run_time / 1000.0)) + "s";
+	std::string file_name = "Render/render_" + resolution + "_N" + samples + "_" + time + ".bmp";
 
 	// Create and save image file
 	camera.createImage(file_name.c_str());

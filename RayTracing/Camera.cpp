@@ -20,7 +20,7 @@ void Camera::render(const int& num_samples)
 	const size_t width = _camera_film.width;
 
 	// Number of ray reflections to trace
-	const int max_reflections = 5;
+	const int max_reflections = 7;
 
 	// Samples per pixel
 	for (int n = 0; n < num_samples; ++n) {
@@ -98,39 +98,55 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		return dvec3(0.0);
 
 	// The closest intersection for current ray
-	IntersectionPoint closest_point;
+	IntersectionPoint surface_point;
 
 	// Test the ray against all triangle objects
-	triangleIntersectionTests(ray, closest_point);
+	triangleIntersectionTests(ray, surface_point);
 
 	// Test the ray against the sphere
-	sphereIntersectionTest(ray, closest_point);
+	sphereIntersectionTest(ray, surface_point);
 
 	// If distance is negative, no intersection was found in the ray direction
-	if (closest_point.distance < 0.0) {
+	if (surface_point.distance < 0.0) {
 		return dvec3(0.0);
 	}
 
 	// Light source
-	if (closest_point.material->surface_type == Material::SurfaceType::LightSource) {
-		return closest_point.material->color;
+	if (surface_point.material->surface_type == Material::SurfaceType::LightSource) {
+		return surface_point.material->color;
 	}
 	// Specular surface
-	else if (closest_point.material->surface_type == Material::SurfaceType::Specular) {
+	else if (surface_point.material->surface_type == Material::SurfaceType::Specular) {
 		// Compute reflected ray
-		dvec3 reflect_direction = reflect(ray.direction, closest_point.normal);
-		Ray reflected_ray(closest_point.position, reflect_direction);
+		dvec3 reflect_direction = reflect(ray.direction, surface_point.normal);
+		Ray reflected_ray(surface_point.position, reflect_direction);
 
 		// Recursive path tracing (perfect reflection)
 		return tracePath(reflected_ray, reflection_count - 1);
-	} 
+	}
+	// Transparent surface
+	else if (surface_point.material->surface_type == Material::SurfaceType::Transparent) {
+
+		// Refractive indices
+		double n_1 = 1.0; // air
+		double n_2 = 1.5; // glass
+
+		// Check the current medium the ray is traveling in
+		bool air = dot(surface_point.normal, ray.direction) > 0.0;
+
+		if (!air) {
+			std::swap(n_1, n_2);
+		}
+
+		return dvec3(0.0);
+	}
 	// Diffuse surface
-	else if (closest_point.material->surface_type == Material::SurfaceType::Diffuse) {
+	else if (surface_point.material->surface_type == Material::SurfaceType::Diffuse) {
 		// Let the first random number be equal to cos(theta)
 		double cos_theta = _distribution(_generator); 
 
-		// Russian roulette
-		double phi = (cos_theta * 2.0 * PI) / closest_point.material->reflection_coefficient;
+		// Apply Russian roulette to terminate rays
+		double phi = (cos_theta * 2.0 * PI) / surface_point.material->reflection_coefficient;
 		if (phi > 2.0 * PI) {
 			return dvec3(0.0);
 		}
@@ -138,13 +154,13 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		double random_2 = _distribution(_generator);
 
 		// Generate and compute a random direction in the hemisphere
-		dvec3 sample_direction_world = hemisphereSampleDirection(cos_theta, random_2, closest_point.normal);
+		dvec3 sample_direction_world = hemisphereSampleDirection(cos_theta, random_2, surface_point.normal);
 
 		// Create a ray from the sample direction
-		Ray sample_ray(closest_point.position, sample_direction_world);
+		Ray sample_ray(surface_point.position, sample_direction_world);
 
 		// BRDF
-		dvec3 brdf = closest_point.material->brdf(closest_point.normal, ray.direction, sample_ray.direction);
+		dvec3 brdf = surface_point.material->brdf(surface_point.normal, ray.direction, sample_ray.direction);
 
 		// Recursion
 		dvec3 indirect_light = tracePath(sample_ray, reflection_count - 1) * brdf * phi;
@@ -156,7 +172,7 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		//indirect_light /= pdf;
 
 		// Compute direct light from light source
-		dvec3 direct_light = computeDirectLight(closest_point, brdf, 20);
+		dvec3 direct_light = computeDirectLight(surface_point, brdf, 20);
 
 		// Combine the direct and indirect light and multiply with surface color
 		return (direct_light + indirect_light);
@@ -375,7 +391,6 @@ void Camera::computePixelWidth()
 	dvec2 p_2 = normalizedPixelCoord(1, 0);
 
 	_pixel_width = glm::distance(dvec3(_transform_matrix * vec4(p_1.x, p_1.y, 1.0, 1.0)), dvec3(_transform_matrix * vec4(p_2.x, p_2.y, 1.0, 1.0)));
-	std::cout << _pixel_width << std::endl;
 }
 
 dvec2 Camera::normalizedPixelCoord(const int& x, const int& y)
