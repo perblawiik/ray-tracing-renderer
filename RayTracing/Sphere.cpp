@@ -10,8 +10,8 @@ bool Sphere::rayIntersection(const Ray& ray, double& d_near, double& d_far)
 	double cdir_dot_rdir = glm::dot(ray_origin_to_center, ray.direction);
 
 	// ray to center vector and ray direction is facing opposite directions
-	//if (cdir_dot_rdir < 0)
-		//return false;
+	if (cdir_dot_rdir < 0)
+		return false;
 
 	// Compute the square of center_to_ray_dist directly since we dont need the square root for anything
 	double center_to_ray_dist2 = glm::dot(ray_origin_to_center, ray_origin_to_center) - (cdir_dot_rdir * cdir_dot_rdir);
@@ -26,12 +26,17 @@ bool Sphere::rayIntersection(const Ray& ray, double& d_near, double& d_far)
 	d_near = cdir_dot_rdir - hit_to_center_dist;
 	d_far = cdir_dot_rdir + hit_to_center_dist;
 
-	if (d_near > d_far && d_far > 0.0)
+	if (d_near > d_far)
 		std::swap(d_near, d_far);
 
-	// If closest positive intersection point is negative, the intersection is before ray origin
-	if (d_near < 0.0 )
-		return false;
+	// If d_near is negative, ray origin might be inside the sphere
+	if (d_near < 0.0) {
+		d_near = d_far;
+
+		// If closest positive intersection point is negative, the intersection is before ray origin
+		if (d_near < 0.0)
+			return false;
+	}
 
 	return true;
 }

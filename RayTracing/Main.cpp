@@ -20,10 +20,10 @@ int main()
 {
 	//******** 1. Set up the camera ********//
 	//--------------------------------------//
-	
+
 	// Pixel dimensions for the image to render
-	const int width = 640;
-	const int height = 480;
+	const int width = 500;
+	const int height = 500;
 
 	const dvec3 camera_position(12.0, 0.0, 0.0);
 	Camera camera(width, height, camera_position);
@@ -127,7 +127,7 @@ int main()
 	}
 	scene.addTriangleObject(&back_left_wall);
 
-	TriangleObject front_left_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(0.0, 0.0, 1.0), diffuse_reflection_coefficient));
+	TriangleObject front_left_wall(new Lambertian(Material::SurfaceType::Diffuse, dvec3(0.157, 0.208, 0.576), diffuse_reflection_coefficient));
 	{
 		const double triangle_data[] = {
 			// Normal		           Vertex 1           Vertex 2           Vertex 3
@@ -152,7 +152,7 @@ int main()
 	// Define a specular tetrahedron
 	TriangleObject specular_tetrahedron(new Lambertian(Material::SurfaceType::Specular, dvec3(1.0, 1.0, 1.0), 1.0));
 	{
-		dvec3 position(0.0, -4.0, -5.0);
+		dvec3 position(0.0, -6.0, -5.0);
 		double scale = 4.0;
 		specular_tetrahedron.createTetrahedron(position, scale);
 	}
@@ -160,8 +160,13 @@ int main()
 	
 	// Define a specular sphere
 	Lambertian* specular_sphere_material = new Lambertian(Material::SurfaceType::Specular, dvec3(1.0, 1.0, 1.0), 1.0);
-	Sphere specular_sphere(specular_sphere_material, dvec3(3.0, 1.0, -2.5), 2.0);
+	Sphere specular_sphere(specular_sphere_material, dvec3(2.5, 4.0, -2.0), 2.0);
 	scene.addSphere(&specular_sphere);
+
+	// Define a transparent sphere
+	Lambertian* transparent_sphere_material = new Lambertian(Material::SurfaceType::Transparent, dvec3(1.0, 1.0, 1.0), 1.0);
+	Sphere transparent_sphere(transparent_sphere_material, dvec3(3.5, -0.5, -3.0), 2.0);
+	scene.addSphere(&transparent_sphere);
 	
 	// Add a pointer to the scene component to the camera
 	camera.loadScene(&scene);
@@ -174,16 +179,17 @@ int main()
 	std::cout << "Rendering..." << std::endl;
 
 	// Render camera view
-	const int num_samples = 64;
+	const int num_samples = 96;
 	camera.render(num_samples);
 
 	auto time_end = std::chrono::high_resolution_clock::now();
 	auto run_time = std::chrono::duration<double, std::milli>(time_end - time_start).count();
 
+	std::string scene_name = "transparent_test";
 	std::string resolution = std::to_string(width) + "x" + std::to_string(height);
 	std::string samples = "N" + std::to_string(num_samples);
 	std::string time = std::to_string((int)(run_time / 1000.0)) + "s";
-	std::string file_name = "Render/render_" + resolution + "_N" + samples + "_" + time + ".bmp";
+	std::string file_name = "Render/" + scene_name + "_" + resolution + "_" + samples + "_" + time + ".bmp";
 
 	// Create and save image file
 	camera.createImage(file_name.c_str());

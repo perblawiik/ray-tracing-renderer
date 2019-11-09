@@ -126,19 +126,58 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 	}
 	// Transparent surface
 	else if (surface_point.material->surface_type == Material::SurfaceType::Transparent) {
-
-		// Refractive indices
-		double n_1 = 1.0; // air
-		double n_2 = 1.5; // glass
+		// Refractive indices 
+		//*** This should probably be apart of the material class ***//
+		double n_1 = 1.0; // Air
+		double n_2 = 1.5; // Glass
 
 		// Check the current medium the ray is traveling in
-		bool air = dot(surface_point.normal, ray.direction) > 0.0;
+		double cos_theta = dot(surface_point.normal, ray.direction);
 
-		if (!air) {
+		// If theta < 0.0, the normal is facing the opposite direction from incoming ray (current medium is then air)
+		bool air_medium = (cos_theta < 0.0);
+		dvec3 surface_normal = surface_point.normal;
+		
+		// If current medium is not air, swap refracted indices
+		if (!air_medium) {
 			std::swap(n_1, n_2);
+			surface_normal = -surface_normal;
+		}// If current medium is air, invert cos(theta)
+		else { 
+			cos_theta = -cos_theta;
 		}
 
-		return dvec3(0.0);
+		// Compute Schlick's equation for radiance distribution over reflect and refracted ray
+		double R_theta = schlicksEquation(n_1, n_2, cos_theta);
+		double brewster_angle = 42.0 * PI / 180.0;
+
+		dvec3 refracted_light(0.0);
+		// Compare with brewster angle if current medium is glass
+		if ((!air_medium && acos(cos_theta) > brewster_angle) == false)  {
+			// Compute the refracted ray
+			double n_1_divide_n_2 = n_1 / n_2;
+			double A = 1.0 - (n_1_divide_n_2 * n_1_divide_n_2) * (1.0 - cos_theta * cos_theta);
+
+			dvec3 refracted_direction(
+				ray.direction * n_1_divide_n_2 +
+				surface_normal * (n_1_divide_n_2 * cos_theta - sqrt(A))
+			);
+			Ray refracted_ray(surface_point.position, refracted_direction);
+
+			// Recursion (multiplied with the refraction distribution coefficient)
+			refracted_light = tracePath(refracted_ray, reflection_count - 1) * (1.0 - R_theta);
+		}
+
+		// Compute reflected ray
+		dvec3 reflect_direction(0.0);
+		reflect_direction = reflect(ray.direction, surface_normal);
+		Ray reflected_ray(surface_point.position, reflect_direction);
+
+		// Recursion (multiplied with the reflection distribution coefficient)
+		dvec3 reflected_light = tracePath(reflected_ray, reflection_count - 1) * R_theta;
+
+		// Final light
+		return refracted_light + reflected_light;
 	}
 	// Diffuse surface
 	else if (surface_point.material->surface_type == Material::SurfaceType::Diffuse) {
@@ -194,7 +233,8 @@ bool Camera::shadowRay(const dvec3& surface_point, const dvec3& point_to_light, 
 		bool intersection_found = triangle.rayIntersection(light_ray, t, u, v);
 
 		// Shadow
-		if (intersection_found && t < light_distance) {
+		if (intersection_found && t < light_distance && 
+			(tetrahedron->material->surface_type != Material::SurfaceType::Transparent)) {
 			return true;
 		}
 	}
@@ -204,7 +244,8 @@ bool Camera::shadowRay(const dvec3& surface_point, const dvec3& point_to_light, 
 		bool intersection_found = sphere->rayIntersection(light_ray, d_near, d_far);
 
 		// Shadow
-		if (intersection_found && d_near < light_distance) {
+		if (intersection_found && (d_near < light_distance) && 
+			(sphere->material->surface_type != Material::SurfaceType::Transparent)) {
 			return true;
 		}
 	}
@@ -363,7 +404,7 @@ void Camera::setupCameraMatrix()
 	// Perspective projection matrix
 	double projection_matrix[16] = { 0 };
 	double aspect_ratio = (double)_camera_film.width / (double)_camera_film.height;
-	double fov = pi<double>() / 2.0; // ~ 90 degrees for the field of view
+	double fov = 75.0 * pi<double>() / 180.0; // 75 degrees for the field of view
 	Transform::perspective(projection_matrix, fov, aspect_ratio, 1.0, 1000.0);
 
 	// Camera view transform
@@ -396,4 +437,10 @@ void Camera::computePixelWidth()
 dvec2 Camera::normalizedPixelCoord(const int& x, const int& y)
 {
 	return dvec2(1.0 - (x / (_camera_film.width  * 0.5)), (y / (_camera_film.height * 0.5)) - 1.0);
+}
+
+double Camera::schlicksEquation(const double& n_1, const double& n_2, const double& cos_theta)
+{
+	double R_0 = ((n_1 - n_2) / (n_1 + n_2)) * ((n_1 - n_2) / (n_1 + n_2));
+	return R_0 + (1.0 - R_0) * pow(1.0 - abs(cos_theta), 5);
 }

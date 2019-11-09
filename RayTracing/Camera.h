@@ -100,4 +100,6 @@ private:
 	void computePixelWidth();
 
 	inline dvec2 normalizedPixelCoord(const int& x, const int& y);
+
+	inline double schlicksEquation(const double& n_1, const double& n_2, const double& cos_theta);
 };
