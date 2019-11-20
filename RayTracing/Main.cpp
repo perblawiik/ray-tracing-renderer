@@ -16,14 +16,16 @@
 
 using namespace glm;
 
+const char* createFileName(const std::string& scene_name, const int& width, const int& height, const int& num_samples, const double& run_time);
+
 int main()
 {
 	//******** 1. Set up the camera ********//
 	//--------------------------------------//
 
 	// Pixel dimensions for the image to render
-	const int width = 500;
-	const int height = 500;
+	const int width = 1024;
+	const int height = 768;
 
 	const dvec3 camera_position(12.0, 0.0, 0.0);
 	Camera camera(width, height, camera_position);
@@ -165,7 +167,7 @@ int main()
 
 	// Define a transparent sphere
 	Lambertian* transparent_sphere_material = new Lambertian(Material::SurfaceType::Transparent, dvec3(1.0, 1.0, 1.0), 1.0);
-	Sphere transparent_sphere(transparent_sphere_material, dvec3(3.5, -0.5, -3.0), 2.0);
+	Sphere transparent_sphere(transparent_sphere_material, dvec3(3.25, -0.5, -3.0), 2.0);
 	scene.addSphere(&transparent_sphere);
 	
 	// Add a pointer to the scene component to the camera
@@ -185,17 +187,22 @@ int main()
 	auto time_end = std::chrono::high_resolution_clock::now();
 	auto run_time = std::chrono::duration<double, std::milli>(time_end - time_start).count();
 
-	std::string scene_name = "transparent_test";
-	std::string resolution = std::to_string(width) + "x" + std::to_string(height);
-	std::string samples = "N" + std::to_string(num_samples);
-	std::string time = std::to_string((int)(run_time / 1000.0)) + "s";
-	std::string file_name = "Render/" + scene_name + "_" + resolution + "_" + samples + "_" + time + ".bmp";
-
+	const char* file_name = createFileName("scene4", width, height, num_samples, run_time);
+	
 	// Create and save image file
-	camera.createImage(file_name.c_str());
+	camera.createImage(file_name);
 
 	//std::cout << "Render complete: " << run_time / 1000.0 << " seconds" << std::endl;
 	//system("pause");
 
 	return 0;
+}
+
+const char* createFileName(const std::string& scene_name, const int& width, const int& height, const int& num_samples, const double& run_time)
+{
+	std::string resolution = std::to_string(width) + "x" + std::to_string(height);
+	std::string samples = "N" + std::to_string(num_samples);
+	std::string time = std::to_string((int)(run_time / 1000.0)) + "s";
+	std::string file_name = "Render/" + scene_name + "_" + resolution + "_" + samples + "_" + time + ".bmp";
+	return file_name.c_str();
 }

@@ -10,7 +10,7 @@ bool Sphere::rayIntersection(const Ray& ray, double& d_near, double& d_far)
 	double cdir_dot_rdir = glm::dot(ray_origin_to_center, ray.direction);
 
 	// ray to center vector and ray direction is facing opposite directions
-	if (cdir_dot_rdir < 0)
+	if (cdir_dot_rdir < 0.0)
 		return false;
 
 	// Compute the square of center_to_ray_dist directly since we dont need the square root for anything

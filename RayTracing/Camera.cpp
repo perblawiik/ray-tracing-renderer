@@ -1,7 +1,7 @@
 #include "Camera.h"
 
 Camera::Camera(const size_t width, const size_t height, const dvec3& eye)
-	: _eye_point(eye), _camera_film(width, height, dvec3(_eye_point.x - 1.0, 0.0, 0.0)), _scene(nullptr),
+	: _eye_point(eye), _camera_film(width, height), _scene(nullptr),
 	_distribution(std::uniform_real_distribution<double>(0.0, 1.0))
 {
 	setupCameraMatrix();
@@ -35,7 +35,7 @@ void Camera::render(const int& num_samples)
 				// Normalize coordinates by transforming from [0 : width/height] to the range [-1.0 : 1.0]
 				dvec2 pixel_normalized = normalizedPixelCoord(pixel_x, pixel_y);
 
-				// Generate a random offset in the pixel plane (used for ray randomization)
+				// Generate a random offset in the pixel plane (used for ray randomization to reduce aliasing)
 				double dx = _distribution(_generator) * _pixel_width - (0.5 * _pixel_width);
 				double dy = _distribution(_generator) * _pixel_width - (0.5 * _pixel_width);
 
@@ -97,6 +97,8 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 	if (reflection_count == 0)
 		return dvec3(0.0);
 
+	double bias_magnitude = 1e-8;
+
 	// The closest intersection for current ray
 	IntersectionPoint surface_point;
 
@@ -119,6 +121,8 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 	else if (surface_point.material->surface_type == Material::SurfaceType::Specular) {
 		// Compute reflected ray
 		dvec3 reflect_direction = reflect(ray.direction, surface_point.normal);
+		// Add bias to offset ray origin from surface
+		//dvec3 bias = -ray.direction * bias_magnitude;
 		Ray reflected_ray(surface_point.position, reflect_direction);
 
 		// Recursive path tracing (perfect reflection)
@@ -147,34 +151,41 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 			cos_theta = -cos_theta;
 		}
 
-		// Compute Schlick's equation for radiance distribution over reflect and refracted ray
-		double R_theta = schlicksEquation(n_1, n_2, cos_theta);
-		double brewster_angle = 42.0 * PI / 180.0;
+		// Compute Fresnel's equation for radiance distribution over reflect and refracted ray
+		//double reflection_ratio = schlicksEquation(n_1, n_2, cos_theta);
+		double reflection_ratio = fresnelsEquation(n_1, n_2, cos_theta);
 
+		// If the current medium is thicker than the outgoing medium, and refraction ratio is equal to 1,
+		// we have total reflection and no refraction
 		dvec3 refracted_light(0.0);
-		// Compare with brewster angle if current medium is glass
-		if ((!air_medium && acos(cos_theta) > brewster_angle) == false)  {
+		if (reflection_ratio < 1.0)  {
 			// Compute the refracted ray
-			double n_1_divide_n_2 = n_1 / n_2;
-			double A = 1.0 - (n_1_divide_n_2 * n_1_divide_n_2) * (1.0 - cos_theta * cos_theta);
+			double n_1_div_n_2 = n_1 / n_2;
+			double A = 1.0 - (n_1_div_n_2 * n_1_div_n_2) * (1.0 - cos_theta * cos_theta);
 
 			dvec3 refracted_direction(
-				ray.direction * n_1_divide_n_2 +
-				surface_normal * (n_1_divide_n_2 * cos_theta - sqrt(A))
+				ray.direction * n_1_div_n_2 +
+				surface_normal * (n_1_div_n_2 * cos_theta - sqrt(A))
 			);
-			Ray refracted_ray(surface_point.position, refracted_direction);
+
+			// Add bias to offset ray origin from the surface
+			dvec3 bias = refracted_direction * bias_magnitude; 
+			Ray refracted_ray(surface_point.position + bias, refracted_direction);
 
 			// Recursion (multiplied with the refraction distribution coefficient)
-			refracted_light = tracePath(refracted_ray, reflection_count - 1) * (1.0 - R_theta);
+			refracted_light = tracePath(refracted_ray, reflection_count - 1) * (1.0 - reflection_ratio);
 		}
 
 		// Compute reflected ray
 		dvec3 reflect_direction(0.0);
 		reflect_direction = reflect(ray.direction, surface_normal);
-		Ray reflected_ray(surface_point.position, reflect_direction);
+
+		// Add bias to offset ray origin from surface
+		dvec3 bias = reflect_direction * bias_magnitude;
+		Ray reflected_ray(surface_point.position + bias, reflect_direction);
 
 		// Recursion (multiplied with the reflection distribution coefficient)
-		dvec3 reflected_light = tracePath(reflected_ray, reflection_count - 1) * R_theta;
+		dvec3 reflected_light = tracePath(reflected_ray, reflection_count - 1) * reflection_ratio;
 
 		// Final light
 		return refracted_light + reflected_light;
@@ -196,19 +207,15 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		dvec3 sample_direction_world = hemisphereSampleDirection(cos_theta, random_2, surface_point.normal);
 
 		// Create a ray from the sample direction
+		//dvec3 bias = sample_direction_world * bias_magnitude; // Add bias
 		Ray sample_ray(surface_point.position, sample_direction_world);
 
-		// BRDF
+		// Bidirectional Reflectance Distribution Function
 		dvec3 brdf = surface_point.material->brdf(surface_point.normal, ray.direction, sample_ray.direction);
 
-		// Recursion
+		// Recursion (note that the variable phi contains the same parts given by dividing with pdf and multiplying with cos(theta))
+		// Second note: the pdf is constant (1.0 / (2.0 * PI)) in this case because all of the random directions share the same probability (equiprobability)
 		dvec3 indirect_light = tracePath(sample_ray, reflection_count - 1) * brdf * phi;
-		
-		// The indirect light needs to be divided by the pdf constant (probability density function)
-		// Note that the pdf is constant in this case because all of the random directions share the same probability (equiprobability)
-		//double pdf = 1.0 / (2.0 * PI);
-		// Also divide the sum by N to complete the Monte Carlo sampling
-		//indirect_light /= pdf;
 
 		// Compute direct light from light source
 		dvec3 direct_light = computeDirectLight(surface_point, brdf, 20);
@@ -273,6 +280,7 @@ dvec3 Camera::computeDirectLight(const IntersectionPoint& surface_point, const d
 			dvec3 point_to_light_direction = normalize(sample_point - surface_point.position);
 			double point_to_light_distance = distance(sample_point, surface_point.position);
 
+			//dvec3 bias = point_to_light_direction * 1e-8;
 			if (!shadowRay(surface_point.position, point_to_light_direction, point_to_light_distance)) {
 				double cos_theta_out = max(dot(surface_point.normal, point_to_light_direction), 0.0);
 				double cos_theta_in = dot(-point_to_light_direction, light_source->triangle.normal);
@@ -443,4 +451,25 @@ double Camera::schlicksEquation(const double& n_1, const double& n_2, const doub
 {
 	double R_0 = ((n_1 - n_2) / (n_1 + n_2)) * ((n_1 - n_2) / (n_1 + n_2));
 	return R_0 + (1.0 - R_0) * pow(1.0 - abs(cos_theta), 5);
+}
+
+double Camera::fresnelsEquation(const double& n_1, const double& n_2, const double& cos_theta1)
+{
+	// Compute sin_theta2 using Snell's law
+	double sin_theta2 = n_1 / n_2 * sqrt(max(0.0, 1.0 - cos_theta1 * cos_theta1));
+
+	// If larger or equal to one, we have total reflection (internal reflection inside a thicker medium compared to outside)
+	if (sin_theta2 >= 1.0) {
+		return 1.0;
+	}
+
+	// Compute cos_theta2 (derived from cos_theta^2 + sin_theta^2 = 1)
+	double cos_theta2 = sqrt(max(0.0, 1.0 - sin_theta2 * sin_theta2));
+
+	// Calculate the square roots of the Fresnel equations
+	double Rs_sqroot = ((n_1 * cos_theta1) - (n_2 * cos_theta2)) / ((n_1 * cos_theta1) + (n_2 * cos_theta2));
+	double Rp_sqroot = ((n_2 * cos_theta1) - (n_1 * cos_theta2)) / ((n_2 * cos_theta1) + (n_1 * cos_theta2));
+
+	// The reflection ratio is given by the average of the two equations
+	return (Rs_sqroot * Rs_sqroot + Rp_sqroot * Rp_sqroot) * 0.5;
 }

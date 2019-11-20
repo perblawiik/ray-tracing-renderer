@@ -122,6 +122,7 @@
     <ClCompile Include="Lambertian.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Material.cpp" />
+    <ClCompile Include="OrenNayar.cpp" />
     <ClCompile Include="Sphere.cpp" />
     <ClCompile Include="Triangle.cpp" />
     <ClCompile Include="TriangleObject.cpp" />
@@ -130,6 +131,7 @@
     <ClInclude Include="AreaLightSource.h" />
     <ClInclude Include="Bitmap.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="OrenNayar.h" />
     <ClInclude Include="Transform.h" />
     <ClInclude Include="Lambertian.h" />
     <ClInclude Include="Material.h" />

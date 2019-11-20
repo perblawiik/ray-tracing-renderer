@@ -39,7 +39,7 @@ bool Triangle::rayIntersection(const Ray& ray, double& t, double& u, double& v)
 
 	t = glm::dot(Q, E_2) * det_inversed;
 
-	// No intersections in the ray's positive direction if t < 0
+	// No intersections in the ray's direction if t < 0
 	if (t < 0.00001) {
 		return false;
 	}

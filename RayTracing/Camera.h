@@ -35,11 +35,11 @@ struct Film
 {
 	size_t width;
 	size_t height;
-	dvec3 position;
+
 	std::vector<dvec3> pixel_data;
 
-	Film(const size_t& width, const size_t& height, const dvec3& position)
-		: width(width), height(height), position(position)
+	Film(const size_t& width, const size_t& height)
+		: width(width), height(height)
 	{
 		pixel_data.resize(width * height);
 	}
@@ -102,4 +102,6 @@ private:
 	inline dvec2 normalizedPixelCoord(const int& x, const int& y);
 
 	inline double schlicksEquation(const double& n_1, const double& n_2, const double& cos_theta);
+
+	inline double fresnelsEquation(const double& n_1, const double& n_2, const double& cos_theta);
 };
