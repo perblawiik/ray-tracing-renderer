@@ -181,7 +181,7 @@ int main()
 	std::cout << "Rendering..." << std::endl;
 
 	// Render camera view
-	const int num_samples = 96;
+	const int num_samples = 512;
 	camera.render(num_samples);
 
 	auto time_end = std::chrono::high_resolution_clock::now();

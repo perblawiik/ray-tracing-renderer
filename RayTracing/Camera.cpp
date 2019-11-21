@@ -97,19 +97,11 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 	if (reflection_count == 0)
 		return dvec3(0.0);
 
-	double bias_magnitude = 1e-8;
-
 	// The closest intersection for current ray
 	IntersectionPoint surface_point;
 
-	// Test the ray against all triangle objects
-	triangleIntersectionTests(ray, surface_point);
-
-	// Test the ray against the sphere
-	sphereIntersectionTest(ray, surface_point);
-
-	// If distance is negative, no intersection was found in the ray direction
-	if (surface_point.distance < 0.0) {
+	// Test the ray against all geometries in the scene (function returns true if valid intersection is found)
+	if (geometryIntersectionTest(ray, surface_point) == false) {
 		return dvec3(0.0);
 	}
 
@@ -122,7 +114,7 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		// Compute reflected ray
 		dvec3 reflect_direction = reflect(ray.direction, surface_point.normal);
 		// Add bias to offset ray origin from surface
-		//dvec3 bias = -ray.direction * bias_magnitude;
+		//dvec3 bias = ray.direction * EPSILON;
 		Ray reflected_ray(surface_point.position, reflect_direction);
 
 		// Recursive path tracing (perfect reflection)
@@ -137,26 +129,21 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 
 		// Check the current medium the ray is traveling in
 		double cos_theta = dot(surface_point.normal, ray.direction);
-
-		// If theta < 0.0, the normal is facing the opposite direction from incoming ray (current medium is then air)
-		bool air_medium = (cos_theta < 0.0);
 		dvec3 surface_normal = surface_point.normal;
 		
-		// If current medium is not air, swap refracted indices
-		if (!air_medium) {
+		// If theta < 0.0, the normal is facing the opposite direction from incoming ray (current medium is air)
+		if (cos_theta < 0.0) {
+			cos_theta = -cos_theta;
+		}
+		else { // Current medium is glass
 			std::swap(n_1, n_2);
 			surface_normal = -surface_normal;
-		}// If current medium is air, invert cos(theta)
-		else { 
-			cos_theta = -cos_theta;
 		}
 
 		// Compute Fresnel's equation for radiance distribution over reflect and refracted ray
-		//double reflection_ratio = schlicksEquation(n_1, n_2, cos_theta);
 		double reflection_ratio = fresnelsEquation(n_1, n_2, cos_theta);
 
-		// If the current medium is thicker than the outgoing medium, and refraction ratio is equal to 1,
-		// we have total reflection and no refraction
+		// If the current medium is thicker than the outgoing medium and refraction ratio == 1, we have total reflection and no refraction
 		dvec3 refracted_light(0.0);
 		if (reflection_ratio < 1.0)  {
 			// Compute the refracted ray
@@ -169,7 +156,7 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 			);
 
 			// Add bias to offset ray origin from the surface
-			dvec3 bias = refracted_direction * bias_magnitude; 
+			dvec3 bias = refracted_direction * EPSILON;
 			Ray refracted_ray(surface_point.position + bias, refracted_direction);
 
 			// Recursion (multiplied with the refraction distribution coefficient)
@@ -177,11 +164,10 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		}
 
 		// Compute reflected ray
-		dvec3 reflect_direction(0.0);
-		reflect_direction = reflect(ray.direction, surface_normal);
+		dvec3 reflect_direction = reflect(ray.direction, surface_normal);
 
 		// Add bias to offset ray origin from surface
-		dvec3 bias = reflect_direction * bias_magnitude;
+		dvec3 bias = reflect_direction * EPSILON;
 		Ray reflected_ray(surface_point.position + bias, reflect_direction);
 
 		// Recursion (multiplied with the reflection distribution coefficient)
@@ -195,25 +181,25 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 		// Let the first random number be equal to cos(theta)
 		double cos_theta = _distribution(_generator); 
 
-		// Apply Russian roulette to terminate rays
+		// Apply Russian roulette to terminate rays.
 		double phi = (cos_theta * 2.0 * PI) / surface_point.material->reflection_coefficient;
 		if (phi > 2.0 * PI) {
 			return dvec3(0.0);
 		}
 
-		double random_2 = _distribution(_generator);
-
-		// Generate and compute a random direction in the hemisphere
-		dvec3 sample_direction_world = hemisphereSampleDirection(cos_theta, random_2, surface_point.normal);
+		// Generate and compute a random direction in the hemisphere (note that cos theta is randomly generated)
+		dvec3 sample_direction = hemisphereSampleDirection(cos_theta, surface_point.normal);
 
 		// Create a ray from the sample direction
-		//dvec3 bias = sample_direction_world * bias_magnitude; // Add bias
-		Ray sample_ray(surface_point.position, sample_direction_world);
+		//dvec3 bias = sample_direction * EPSILON;
+		Ray sample_ray(surface_point.position, sample_direction);
 
 		// Bidirectional Reflectance Distribution Function
 		dvec3 brdf = surface_point.material->brdf(surface_point.normal, ray.direction, sample_ray.direction);
 
-		// Recursion (note that the variable phi contains the same parts given by dividing with pdf and multiplying with cos(theta))
+		// Recursion for the sample ray
+		// First note: the variable phi contains the same parts given by dividing with pdf, multiplying with cos(theta),
+		// and also division by the reflection coefficient to compensate for the probability of the russian roulette termination.
 		// Second note: the pdf is constant (1.0 / (2.0 * PI)) in this case because all of the random directions share the same probability (equiprobability)
 		dvec3 indirect_light = tracePath(sample_ray, reflection_count - 1) * brdf * phi;
 
@@ -309,16 +295,17 @@ void Camera::createLocalCoordinateSystem(const dvec3& normal, dvec3& local_x_axi
 	local_z_axis = cross(normal, local_x_axis);
 }
 
-dvec3 Camera::hemisphereSampleDirection(const double &cos_theta, const double &random_2, const dvec3& surface_normal)
+dvec3 Camera::hemisphereSampleDirection(const double &cos_theta, const dvec3& surface_normal)
 {
-	// We assume that the first random value is cos(theta), which is equal to the y-coordiante
-	// Theta is the inclination angle and phi is the azimuth angle
+	// Theta is the inclination angle 
 	double sin_theta = sqrt(1 - cos_theta * cos_theta);
-	double phi = 2 * PI * random_2;
+	// Phi is the azimuth angle
+	double phi = 2 * PI * _distribution(_generator); // Second random number
 
-	float x = sin_theta * cos(phi);
-	float z = sin_theta * sin(phi);
+	double x = sin_theta * cos(phi);
+	double z = sin_theta * sin(phi);
 
+	// We assume that the first random value is cos(theta), which is equal to the y-coordiante
 	dvec3 sample_direction_local(x, cos_theta, z);
 
 	// Create a local coordinate system for the hemisphere of the intersection point with the surface normal as the y-axis
@@ -328,13 +315,23 @@ dvec3 Camera::hemisphereSampleDirection(const double &cos_theta, const double &r
 
 	// Transform direction from local to world by multiplying with the local coordinate system matrix
 	// Note that we only transform the direction so the translation part is not needed (in that case we would use a 4x4 matrix)
-	dvec3 sample_direction_world(
+	return dvec3(
 		sample_direction_local.x * local_z_axis.x + sample_direction_local.y * surface_normal.x + sample_direction_local.z * local_x_axis.x,
 		sample_direction_local.x * local_z_axis.y + sample_direction_local.y * surface_normal.y + sample_direction_local.z * local_x_axis.y,
 		sample_direction_local.x * local_z_axis.z + sample_direction_local.y * surface_normal.z + sample_direction_local.z * local_x_axis.z
 	);
+}
 
-	return sample_direction_world;
+bool Camera::geometryIntersectionTest(const Ray& ray, IntersectionPoint& surface_point)
+{
+	// Test the ray against all triangle objects
+	triangleIntersectionTests(ray, surface_point);
+
+	// Test the ray against the sphere
+	sphereIntersectionTests(ray, surface_point);
+	
+	// If distance is negative, no intersection was found in the ray direction
+	return !(surface_point.distance < 0.0);
 }
 
 void Camera::triangleIntersectionTests(const Ray& ray, IntersectionPoint& closest_point)
@@ -374,7 +371,7 @@ void Camera::triangleIntersectionTests(const Ray& ray, IntersectionPoint& closes
 	}
 }
 
-void Camera::sphereIntersectionTest(const Ray& ray, IntersectionPoint& closest_point)
+void Camera::sphereIntersectionTests(const Ray& ray, IntersectionPoint& closest_point)
 {
 	for (Sphere* sphere : _scene->spheres) {
 		double d_near, d_far = -1.0;
@@ -392,19 +389,6 @@ void Camera::sphereIntersectionTest(const Ray& ray, IntersectionPoint& closest_p
 			}
 		}
 	}
-}
-
-dvec3 Camera::barycentricToWorldCoordinates(const Triangle& triangle, const double& u, const double& v) 
-{
-	dvec3 u_vec(u);
-	dvec3 v_vec(v);
-	dvec3 one_vec(1.0);
-	return ((one_vec - u_vec - v_vec) * triangle.vertices[0]) + (u_vec * triangle.vertices[1]) + (v_vec * triangle.vertices[2]);
-}
-
-double Camera::max(const double& a, const double& b) 
-{
-	return (a < b) ? b : a;
 }
 
 void Camera::setupCameraMatrix()
@@ -442,18 +426,26 @@ void Camera::computePixelWidth()
 	_pixel_width = glm::distance(dvec3(_transform_matrix * vec4(p_1.x, p_1.y, 1.0, 1.0)), dvec3(_transform_matrix * vec4(p_2.x, p_2.y, 1.0, 1.0)));
 }
 
-dvec2 Camera::normalizedPixelCoord(const int& x, const int& y)
+inline dvec3 Camera::barycentricToWorldCoordinates(const Triangle& triangle, const double& u, const double& v)
+{
+	dvec3 u_vec(u);
+	dvec3 v_vec(v);
+	dvec3 one_vec(1.0);
+	return ((one_vec - u_vec - v_vec) * triangle.vertices[0]) + (u_vec * triangle.vertices[1]) + (v_vec * triangle.vertices[2]);
+}
+
+inline dvec2 Camera::normalizedPixelCoord(const int& x, const int& y)
 {
 	return dvec2(1.0 - (x / (_camera_film.width  * 0.5)), (y / (_camera_film.height * 0.5)) - 1.0);
 }
 
-double Camera::schlicksEquation(const double& n_1, const double& n_2, const double& cos_theta)
+inline double Camera::schlicksEquation(const double& n_1, const double& n_2, const double& cos_theta)
 {
 	double R_0 = ((n_1 - n_2) / (n_1 + n_2)) * ((n_1 - n_2) / (n_1 + n_2));
 	return R_0 + (1.0 - R_0) * pow(1.0 - abs(cos_theta), 5);
 }
 
-double Camera::fresnelsEquation(const double& n_1, const double& n_2, const double& cos_theta1)
+inline double Camera::fresnelsEquation(const double& n_1, const double& n_2, const double& cos_theta1)
 {
 	// Compute sin_theta2 using Snell's law
 	double sin_theta2 = n_1 / n_2 * sqrt(max(0.0, 1.0 - cos_theta1 * cos_theta1));

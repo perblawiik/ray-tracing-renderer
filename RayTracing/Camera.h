@@ -19,7 +19,8 @@
 
 using namespace glm;
 
-#define PI 3.14159265358979323846
+constexpr auto PI = 3.14159265358979323846;
+constexpr auto EPSILON = 1e-8;
 
 struct IntersectionPoint
 {
@@ -58,12 +59,8 @@ public:
 	Camera(const size_t width, const size_t height, const dvec3& eye);
 
 	void loadScene(Scene* scene);
-	
-	// Render scene with ray tracing
 	void render(const int& num_samples);
-
 	void createImage(const char* file_name);
-
 private:
 	dvec3 _eye_point;
 	Film _camera_film;
@@ -83,25 +80,26 @@ private:
 
 	dvec3 computeDirectLight(const IntersectionPoint& surface_point, const dvec3& brdf, const size_t sample_ray_count);
 
-	dvec3 hemisphereSampleDirection(const double &random_1, const double &random_2, const dvec3& surface_normal);
+	dvec3 hemisphereSampleDirection(const double &cos_theta, const dvec3& surface_normal);
 
 	void createLocalCoordinateSystem(const dvec3& N, dvec3& Nt, dvec3& Nb);
 
+	bool geometryIntersectionTest(const Ray& ray, IntersectionPoint& closest_point);
+
 	void triangleIntersectionTests(const Ray& ray, IntersectionPoint& closest_point);
 
-	void sphereIntersectionTest(const Ray& ray, IntersectionPoint& closest_point);
-
-	inline dvec3 barycentricToWorldCoordinates(const Triangle& triangle, const double& u, const double& v);
-
-	inline double max(const double& a, const double& b);
+	void sphereIntersectionTests(const Ray& ray, IntersectionPoint& closest_point);
 
 	void setupCameraMatrix();
 
 	void computePixelWidth();
 
-	inline dvec2 normalizedPixelCoord(const int& x, const int& y);
+	// Inline helper functions
+	dvec3 barycentricToWorldCoordinates(const Triangle& triangle, const double& u, const double& v);
 
-	inline double schlicksEquation(const double& n_1, const double& n_2, const double& cos_theta);
+	dvec2 normalizedPixelCoord(const int& x, const int& y);
 
-	inline double fresnelsEquation(const double& n_1, const double& n_2, const double& cos_theta);
+	double schlicksEquation(const double& n_1, const double& n_2, const double& cos_theta);
+
+	double fresnelsEquation(const double& n_1, const double& n_2, const double& cos_theta);
 };
