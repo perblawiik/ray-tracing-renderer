@@ -12,6 +12,7 @@
 #include "Sphere.h"
 #include "AreaLightSource.h"
 #include "Lambertian.h"
+#include "OrenNayar.h"
 #include "Scene.h"
 
 using namespace glm;
@@ -27,7 +28,7 @@ int main()
 	const int width = 1024;
 	const int height = 768;
 
-	const dvec3 camera_position(12.0, 0.0, 0.0);
+	const dvec3 camera_position(12.5, 0.0, 0.0);
 	Camera camera(width, height, camera_position);
 
 	//******** 2. Set up the scene ********//
@@ -169,6 +170,11 @@ int main()
 	Lambertian* transparent_sphere_material = new Lambertian(Material::SurfaceType::Transparent, dvec3(1.0, 1.0, 1.0), 1.0);
 	Sphere transparent_sphere(transparent_sphere_material, dvec3(3.25, -0.5, -3.0), 2.0);
 	scene.addSphere(&transparent_sphere);
+
+	// Define a diffuse sphere
+	OrenNayar* diffuse_sphere_material = new OrenNayar(Material::SurfaceType::Diffuse, dvec3(1.0, 1.0, 1.0), 1.0);
+	Sphere diffuse_sphere(diffuse_sphere_material, dvec3(0.0, 1.5, 0.0), 1.5);
+	scene.addSphere(&diffuse_sphere);
 	
 	// Add a pointer to the scene component to the camera
 	camera.loadScene(&scene);
@@ -187,7 +193,7 @@ int main()
 	auto time_end = std::chrono::high_resolution_clock::now();
 	auto run_time = std::chrono::duration<double, std::milli>(time_end - time_start).count();
 
-	const char* file_name = createFileName("scene4", width, height, num_samples, run_time);
+	const char* file_name = createFileName("scene5", width, height, num_samples, run_time);
 	
 	// Create and save image file
 	camera.createImage(file_name);

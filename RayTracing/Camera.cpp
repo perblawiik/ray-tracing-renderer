@@ -140,7 +140,7 @@ dvec3 Camera::tracePath(const Ray& ray, const int reflection_count)
 			surface_normal = -surface_normal;
 		}
 
-		// Compute Fresnel's equation for radiance distribution over reflect and refracted ray
+		// Compute Fresnel's equation for radiance distribution over reflected and refracted ray
 		double reflection_ratio = fresnelsEquation(n_1, n_2, cos_theta);
 
 		// If the current medium is thicker than the outgoing medium and refraction ratio == 1, we have total reflection and no refraction
@@ -437,12 +437,6 @@ inline dvec3 Camera::barycentricToWorldCoordinates(const Triangle& triangle, con
 inline dvec2 Camera::normalizedPixelCoord(const int& x, const int& y)
 {
 	return dvec2(1.0 - (x / (_camera_film.width  * 0.5)), (y / (_camera_film.height * 0.5)) - 1.0);
-}
-
-inline double Camera::schlicksEquation(const double& n_1, const double& n_2, const double& cos_theta)
-{
-	double R_0 = ((n_1 - n_2) / (n_1 + n_2)) * ((n_1 - n_2) / (n_1 + n_2));
-	return R_0 + (1.0 - R_0) * pow(1.0 - abs(cos_theta), 5);
 }
 
 inline double Camera::fresnelsEquation(const double& n_1, const double& n_2, const double& cos_theta1)

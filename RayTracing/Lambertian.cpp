@@ -10,5 +10,5 @@ Lambertian::Lambertian(const Lambertian& l)
 
 glm::dvec3 Lambertian::brdf(const glm::dvec3& surface_normal, const glm::dvec3& incoming_ray_direction, const glm::dvec3& outgoing_ray_direction)
 {
-	return color / 3.14159265358979323846;
+	return color / glm::pi<double>();
 }

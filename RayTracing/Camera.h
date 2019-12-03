@@ -99,7 +99,5 @@ private:
 
 	dvec2 normalizedPixelCoord(const int& x, const int& y);
 
-	double schlicksEquation(const double& n_1, const double& n_2, const double& cos_theta);
-
 	double fresnelsEquation(const double& n_1, const double& n_2, const double& cos_theta);
 };
