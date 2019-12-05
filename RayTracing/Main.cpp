@@ -171,10 +171,15 @@ int main()
 	Sphere transparent_sphere(transparent_sphere_material, dvec3(3.25, -0.5, -3.0), 2.0);
 	scene.addSphere(&transparent_sphere);
 
-	// Define a diffuse sphere
-	OrenNayar* diffuse_sphere_material = new OrenNayar(Material::SurfaceType::Diffuse, dvec3(1.0, 1.0, 1.0), 1.0);
+	// Define a diffuse OrenNayar sphere
+	OrenNayar* diffuse_sphere_material = new OrenNayar(Material::SurfaceType::Diffuse, dvec3(1.0, 1.0, 1.0), 1.0, 0.3);
 	Sphere diffuse_sphere(diffuse_sphere_material, dvec3(0.0, 1.5, 0.0), 1.5);
 	scene.addSphere(&diffuse_sphere);
+
+	// Define a diffuse Lambertian sphere
+	Lambertian* diffuse_sphere_material2 = new Lambertian(Material::SurfaceType::Diffuse, dvec3(1.0, 1.0, 1.0), 1.0);
+	Sphere diffuse_sphere2(diffuse_sphere_material2, dvec3(0.0, -1.5, 0.0), 1.5);
+	scene.addSphere(&diffuse_sphere2);
 	
 	// Add a pointer to the scene component to the camera
 	camera.loadScene(&scene);

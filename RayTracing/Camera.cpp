@@ -266,7 +266,6 @@ dvec3 Camera::computeDirectLight(const IntersectionPoint& surface_point, const d
 			dvec3 point_to_light_direction = normalize(sample_point - surface_point.position);
 			double point_to_light_distance = distance(sample_point, surface_point.position);
 
-			//dvec3 bias = point_to_light_direction * 1e-8;
 			if (!shadowRay(surface_point.position, point_to_light_direction, point_to_light_distance)) {
 				double cos_theta_out = max(dot(surface_point.normal, point_to_light_direction), 0.0);
 				double cos_theta_in = dot(-point_to_light_direction, light_source->triangle.normal);
