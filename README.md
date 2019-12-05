@@ -1,7 +1,7 @@
 # Monte Carlo Ray Tracing Renderer
 
 An attempt of making a photo realistic global illumination renderer made from scratch in C++.
-The illumination model is based on path tracing with Monte Carlo integration and can supports perfectly reflective/refractive 
+The illumination model is based on path tracing with Monte Carlo integration and supports perfectly reflective/refractive 
 surfaces aswell as Lambertian and Oren-Nayar diffuse surfaces.
 
 
