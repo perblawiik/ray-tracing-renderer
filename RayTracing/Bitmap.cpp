@@ -1,5 +1,8 @@
 #include "Bitmap.h"
 
+/* This class is based of an article from Solarian Programmer */
+// Source: https://solarianprogrammer.com/2018/11/19/cpp-reading-writing-bmp-images/
+
 Bitmap::Bitmap(int32_t width, int32_t height, bool has_alpha) 
 {
 	if (width <= 0 || height <= 0) {

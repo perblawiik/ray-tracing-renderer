@@ -1,5 +1,8 @@
 #pragma once
 
+/* This class is based of an article from Solarian Programmer */
+// Source: https://solarianprogrammer.com/2018/11/19/cpp-reading-writing-bmp-images/
+
 #include <fstream>
 #include <vector>
 #include <stdexcept>
